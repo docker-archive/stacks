@@ -1,0 +1,1723 @@
+
+swagger: '2.0'
+info:
+  title: Docker Stacks API
+  description: >
+    This API adds native support for Stacks into the Docker API
+
+    This API can be backed by classic containers (no orchestrator), swarm, or
+    kubernetes.
+  version: '1.40'
+parameters:
+  stackID:
+    name: stackID
+    in: path
+    required: true
+    description: The ID of the stack to retrieve
+    type: string
+paths:
+  /stacks:
+    get:
+      description: List the stacks running on the system regardless of orchestrator
+      produces:
+        - application/json
+      responses:
+        '200':
+          description: A list of stacks
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/StackList'
+    post:
+      description: Create a stack and deploy on the specified orchestrator
+      consumes:
+        - application/yaml
+      parameters:
+        - in: body
+          name: stackCreate
+          schema:
+            $ref: '#/definitions/StackCreate'
+      responses:
+        '201':
+          description: The Stack ID
+          schema:
+            type: string
+  '/stacks/{stackID}':
+    parameters:
+      - $ref: '#/parameters/stackID'
+    get:
+      description: Inspect a stack by ID
+      responses:
+        '200':
+          description: A Stack
+          schema:
+            $ref: '#/definitions/Stack'
+        '404':
+          description: No such stack
+    delete:
+      description: Delete a stack by ID
+      responses:
+        '204':
+          description: Stack Removed
+    post:
+      description: Update a stack by ID
+      responses:
+        '200':
+          description: Stack updated
+        '400':
+          description: Bad parameter
+        '404':
+          description: No such stack
+  '/stacks/{stackID}/tasks':
+    parameters:
+      - $ref: '#/parameters/stackID'
+    get:
+      description: Summarize the tasks realizing the services in this Stack
+      responses:
+        '200':
+          description: A task list
+          schema:
+            $ref: '#/definitions/StackTaskList'
+        '404':
+          description: No such stack
+definitions:
+  Stack:
+    description: |
+      Stack is derived from the v1beta2's representation of a Stack
+       # Note: other kubernetes fields omitted in common API  (or should we bubble these up?)
+       #  "namespace": covered by the spec collection (namespace in kube, collection in swarm)
+       # "selfLink": "/apis/compose.docker.com/v1beta2/namespaces/default/stacks/{NAME}",
+       # "uid": "a77e843f-f80b-11e8-a8df-7a75715d5e30",
+       # "resourceVersion": "1225",
+       # "creationTimestamp": "2018-12-04T21:29:17Z"
+    properties:
+      metadata:
+        type: object
+        properties:
+          name:
+            type: string
+      spec:
+        $ref: '#/definitions/StackSpec'
+      stackResources:
+        $ref: '#/definitions/StackResources'
+      orchestrator:
+        $ref: '#/definitions/OrchestratorChoice'
+      status:
+        $ref: '#/definitions/StackStatus'
+  StackCreate:
+    description: StackCreate is the operation to create a stack
+    properties:
+      metadata:
+        type: object
+        properties:
+          name:
+            type: string
+      spec:
+        $ref: '#/definitions/StackSpec'
+      orchestrator:
+        $ref: '#/definitions/OrchestratorChoice'
+  StackList:
+    description: StackList is a list of stacks
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/Stack'
+        type: array
+    required:
+      - items
+  StackSpec:
+    description: StackSpec defines the desired state of Stack
+    properties:
+      services:
+        items:
+          $ref: '#/definitions/ServiceConfig'
+        type: array
+      configs:
+        items:
+          $ref: '#/definitions/ConfigObjConfig'
+        type: array
+      secrets:
+        items:
+          $ref: '#/definitions/SecretConfig'
+        type: array
+      networks:
+        items:
+          $ref: '#/definitions/NetworkConfig'
+        type: array
+      volumes:
+        items:
+          $ref: '#/definitions/VolumeConfig'
+        type: array
+      stackImage:
+        description: |
+          ## NEW
+          If this Stack was defined by a Docker Application bundle, this field
+          points to the registry reference that defines the stack.  When set,
+          the services, configs, secrets, networks, and volumes are read-only
+          fields derived from the application registry artifact.
+        type: string
+      propertyValues:
+        description: |
+          ## NEW
+          This list of KEY=VALUE pairs represent the current set of property
+          values used to instantiate the application registry artifact.
+        items:
+          type: string
+        type: array
+      collection:
+        description: >
+          ## NEW
+
+          This field defines the authorization scope which the Stack runs in.
+
+          When deployed on Swarm, this is realized as collection labels
+          compatible
+
+          with UCP's Authorization model.  When run on kubernetes, this maps to
+
+          a namespace.  All resources in the Stack must reside in the same
+          scope.
+        type: string
+  StackResources:
+    description: >
+      ## NEW
+
+      StackResources links to the running instances of the StackSpec
+
+      The order of the resources in each array matches the order within the
+      StackSpec arrays
+    properties:
+      services:
+        items:
+          $ref: '#/definitions/StackResource'
+        type: array
+      configs:
+        items:
+          $ref: '#/definitions/StackResource'
+        type: array
+      secrets:
+        items:
+          $ref: '#/definitions/StackResource'
+        type: array
+      networks:
+        items:
+          $ref: '#/definitions/StackResource'
+        type: array
+      volumes:
+        items:
+          $ref: '#/definitions/StackResource'
+        type: array
+  StackResource:
+    description: |
+      ## NEW
+      StackResource contains a link to a single instance of the spec
+      For example, when a Service is run on basic containers, the ID would
+      contain the container ID.  When the Service is running on Swarm
+      the ID would be a Swarm Service ID.  When mapped to kubernetes, it would
+      map to a Deployment or DaemonSet ID.
+    properties:
+      orchestrator:
+        $ref: '#/definitions/OrchestratorChoice'
+      kind:
+        description: |
+          Identifies the native orchestrator type, e.g., Deployment, DaemonSet, etc.
+        type: string
+      id:
+        type: string
+  StackStatus:
+    description: StackStatus defines the observed state of Stack
+    properties:
+      message:
+        description: A human readable message indicating details about the stack.
+        type: string
+      phase:
+        description: Current condition of the stack.
+        type: string
+      OverallHealth:
+        description: >
+          ## NEW
+
+          If the Stack is instrumented with health monitoring, this bubbles up
+          the aggregate health
+
+          of the service.
+
+          NOTE - this is an area we should consider trying to be a bit smarter
+          to detect flapping
+
+          or partial failures where some instances of a replicated services are
+          still OK,
+
+          but we could start simple and iterate towards a richer model for
+          overall health
+        type: string
+        enum:
+          - unknown
+          - healthy
+          - degraded
+          - unhealthy
+      lastUpdated:
+        description: |
+          This timestamp represents the time at which the StackStatus
+          was last updated and can inform clients of how fresh (or stale) the
+          information is.
+        type: string
+        format: date-time
+  StackTaskList:
+    description: |
+      ## NEW
+      This list contains a summary of the underlying tasks
+      that make up this Stack
+    properties:
+      currentTasks:
+        description: |
+          This list contains active tasks that are fulfilling this stack
+        items:
+          $ref: '#/definitions/StackTask'
+        type: array
+      pastTasks:
+        description: |
+          This list contains any historical tasks that used to be running
+          but which are no longer active for this Stack.
+        items:
+          $ref: '#/definitions/StackTask'
+        type: array
+  StackTask:
+    description: |
+      ## NEW
+      This contains a summary of the Stacks task
+    properties:
+      ID:
+        type: string
+      Name:
+        type: string
+      Image:
+        type: string
+      NodeID:
+        type: string
+      DesiredState:
+        type: string
+      CurrentState:
+        type: string
+      Err:
+        type: string
+
+  OrchestratorChoice:
+    description: |
+      ## NEW
+      This field specifies which orchestrator the stack is deployed on.
+      Use "none" for basic containers on a local engine
+      ## Support Matrix
+      | **Orchestration** | **Supported** |
+      |-------------------|---------------|
+      | none              | Yes           |
+      | swarm             | Yes           |
+      | kubernetes        | Yes           |
+    type: string
+    enum:
+      - swarm
+      - kubernetes
+      - none
+  ServiceConfig:
+    description: ServiceConfig is the configuration of one service
+    properties:
+      cap_add:
+        description: |
+          ## Support Matrix
+          | **Orchestration** | **Supported** |
+          |-------------------|---------------|
+          | Basic Containers  | Yes           |
+          | Swarm             | Yes           |
+          | Kubernetes        | Yes           |
+        items:
+          type: string
+        type: array
+      cap_drop:
+        description: |
+          ## Support Matrix
+          | **Orchestration** | **Supported** |
+          |-------------------|---------------|
+          | Basic Containers  | Yes           |
+          | Swarm             | Yes           |
+          | Kubernetes        | Yes           |
+        items:
+          type: string
+        type: array
+      command:
+        description: |
+          ## Support Matrix
+          | **Orchestration** | **Supported** |
+          |-------------------|---------------|
+          | Basic Containers  | Yes           |
+          | Swarm             | Yes           |
+          | Kubernetes        | Yes           |
+        items:
+          type: string
+        type: array
+      configs:
+        description: |
+          ## Support Matrix
+          | **Orchestration** | **Supported** |
+          |-------------------|---------------|
+          | Basic Containers  | Yes           |
+          | Swarm             | Yes           |
+          | Kubernetes        | Yes           |
+        items:
+          $ref: '#/definitions/ServiceConfigObjConfig'
+        type: array
+      deploy:
+        description: |
+          ## Support Matrix
+          | **Orchestration** | **Supported** |
+          |-------------------|---------------|
+          | Basic Containers  | Yes           |
+          | Swarm             | Yes           |
+          | Kubernetes        | Yes           |
+        $ref: '#/definitions/DeployConfig'
+      entrypoint:
+        description: |
+          ## Support Matrix
+          | **Orchestration** | **Supported** |
+          |-------------------|---------------|
+          | Basic Containers  | Yes           |
+          | Swarm             | Yes           |
+          | Kubernetes        | Yes           |
+        items:
+          type: string
+        type: array
+      environment:
+        description: |
+          ## Support Matrix
+          | **Orchestration** | **Supported** |
+          |-------------------|---------------|
+          | Basic Containers  | Yes           |
+          | Swarm             | Yes           |
+          | Kubernetes        | Yes           |
+        additionalProperties:
+          type: string
+        type: object
+      extra_hosts:
+        description: |
+          ## Support Matrix
+          | **Orchestration** | **Supported** |
+          |-------------------|---------------|
+          | Basic Containers  | Yes           |
+          | Swarm             | Yes           |
+          | Kubernetes        | Yes           |
+        items:
+          type: string
+        type: array
+      health_check:
+        description: |
+          ## Support Matrix
+          | **Orchestration** | **Supported** |
+          |-------------------|---------------|
+          | Basic Containers  | Yes           |
+          | Swarm             | Yes           |
+          | Kubernetes        | Yes           |
+        $ref: '#/definitions/HealthCheckConfig'
+      hostname:
+        description: |
+          ## Support Matrix
+          | **Orchestration** | **Supported** |
+          |-------------------|---------------|
+          | Basic Containers  | Yes           |
+          | Swarm             | Yes           |
+          | Kubernetes        | Yes           |
+        type: string
+      image:
+        description: |
+          ## Support Matrix
+          | **Orchestration** | **Supported** |
+          |-------------------|---------------|
+          | Basic Containers  | Yes           |
+          | Swarm             | Yes           |
+          | Kubernetes        | Yes           |
+        type: string
+      ipc:
+        description: |
+          ## Support Matrix
+          | **Orchestration** | **Supported** |
+          |-------------------|---------------|
+          | Basic Containers  | Yes           |
+          | Swarm             | Yes           |
+          | Kubernetes        | Yes           |
+        type: string
+      labels:
+        description: |
+          ## Support Matrix
+          | **Orchestration** | **Supported** |
+          |-------------------|---------------|
+          | Basic Containers  | Yes           |
+          | Swarm             | Yes           |
+          | Kubernetes        | Yes           |
+        additionalProperties:
+          type: string
+        type: object
+      name:
+        description: |
+          ## Support Matrix
+          | **Orchestration** | **Supported** |
+          |-------------------|---------------|
+          | Basic Containers  | Yes           |
+          | Swarm             | Yes           |
+          | Kubernetes        | Yes           |
+        type: string
+      pid:
+        description: |
+          ## Support Matrix
+          | **Orchestration** | **Supported** |
+          |-------------------|---------------|
+          | Basic Containers  | Yes           |
+          | Swarm             | Yes           |
+          | Kubernetes        | Yes           |
+        type: string
+      ports:
+        description: |
+          ## Support Matrix
+          | **Orchestration** | **Supported** |
+          |-------------------|---------------|
+          | Basic Containers  | Yes           |
+          | Swarm             | Yes           |
+          | Kubernetes        | Yes           |
+        items:
+          $ref: '#/definitions/ServicePortConfig'
+        type: array
+      privileged:
+        description: |
+          ## Support Matrix
+          | **Orchestration** | **Supported** |
+          |-------------------|---------------|
+          | Basic Containers  | Yes           |
+          | Swarm             | Yes           |
+          | Kubernetes        | Yes           |
+        type: boolean
+      read_only:
+        description: |
+          ## Support Matrix
+          | **Orchestration** | **Supported** |
+          |-------------------|---------------|
+          | Basic Containers  | Yes           |
+          | Swarm             | Yes           |
+          | Kubernetes        | Yes           |
+        type: boolean
+      secrets:
+        description: |
+          ## Support Matrix
+          | **Orchestration** | **Supported** |
+          |-------------------|---------------|
+          | Basic Containers  | Yes           |
+          | Swarm             | Yes           |
+          | Kubernetes        | Yes           |
+        items:
+          $ref: '#/definitions/ServiceSecretConfig'
+        type: array
+      stdin_open:
+        description: |
+          ## Support Matrix
+          | **Orchestration** | **Supported** |
+          |-------------------|---------------|
+          | Basic Containers  | Yes           |
+          | Swarm             | Yes           |
+          | Kubernetes        | Yes           |
+        type: boolean
+      stop_grace_period:
+        description: |
+          ## Support Matrix
+          | **Orchestration** | **Supported** |
+          |-------------------|---------------|
+          | Basic Containers  | Yes           |
+          | Swarm             | Yes           |
+          | Kubernetes        | Yes           |
+        format: int64
+        type: integer
+      tmpfs:
+        description: |
+          ## Support Matrix
+          | **Orchestration** | **Supported** |
+          |-------------------|---------------|
+          | Basic Containers  | Yes           |
+          | Swarm             | Yes           |
+          | Kubernetes        | Yes           |
+        items:
+          type: string
+        type: array
+      tty:
+        description: |
+          ## Support Matrix
+          | **Orchestration** | **Supported** |
+          |-------------------|---------------|
+          | Basic Containers  | Yes           |
+          | Swarm             | Yes           |
+          | Kubernetes        | Yes           |
+        type: boolean
+      user:
+        description: |
+          ## Support Matrix
+          | **Orchestration** | **Supported** |
+          |-------------------|---------------|
+          | Basic Containers  | Yes           |
+          | Swarm             | Yes           |
+          | Kubernetes        | Yes           |
+        type: string
+      volumes:
+        description: >
+          ## Support Matrix
+
+          | **Orchestration** | **Supported** |
+
+          |-------------------|---------------|
+
+          | Basic Containers  | Yes           |
+
+          | Swarm             | Yes           |
+
+          | Kubernetes        | Yes(*)        |
+
+          The kubernetes support could use a bit of improvement to better align,
+
+          https://github.com/docker/kamoulox-compose/blob/master/docs/mapping.md#volumes
+        items:
+          $ref: '#/definitions/ServiceVolumeConfig'
+        type: array
+      working_dir:
+        description: |
+          ## Support Matrix
+          | **Orchestration** | **Supported** |
+          |-------------------|---------------|
+          | Basic Containers  | Yes           |
+          | Swarm             | Yes           |
+          | Kubernetes        | Yes           |
+        type: string
+      cgroup_parent:
+        description: >
+          Specify an optional parent cgroup for the container.
+
+          ## Support Matrix
+
+          | **Orchestration** | **Supported** |
+
+          |-------------------|---------------|
+
+          | Basic Containers  | Yes           |
+
+          | Swarm             | No            |
+
+          | Kubernetes        | No            |
+
+          ## Recommendation
+
+          Drop from the new implementation and warn if detected that it has no
+          effect
+
+          Should formally deprecate in the compose format.
+        type: string
+      container_name:
+        description: >
+          Specify a custom container name, rather than a generated default name.
+
+          ## Support Matrix
+
+          | **Orchestration** | **Supported** |
+
+          |-------------------|---------------|
+
+          | Basic Containers  | Yes           |
+
+          | Swarm             | No            |
+
+          | Kubernetes        | No            |
+
+          ## Recommendation
+
+          Drop from the new implementation and warn if detected that it has no
+          effect
+
+          Should formally deprecate in the compose format.
+
+          Alternative might be to refine this to be a regex of some sorts to try
+          to name
+
+          based on instance count, but that may not be exceptionally useful
+        type: string
+      credential_spec:
+        description: >
+          Configure the credential spec for managed service account. This option
+          is only used for services using Windows containers.
+
+          ## Support Matrix
+
+          | **Orchestration** | **Supported** |
+
+          |-------------------|---------------|
+
+          | Basic Containers  | Yes           |
+
+          | Swarm             | Yes           |
+
+          | Kubernetes        | Not Yet       |
+
+          ## Recommendation
+
+          This needs to be added to kube eventually
+        $ref: '#/definitions/CredentialSpec'
+      depends_on:
+        description: |
+          Express dependency between services
+          ## Support Matrix
+          | **Orchestration** | **Supported** |
+          |-------------------|---------------|
+          | Basic Containers  | Yes           |
+          | Swarm             | No            |
+          | Kubernetes        | No            |
+          ## Recommendation
+          This should be supported on all orchestrators to help express
+          relationship between tiers so developers can start a subset
+          of the tiers they need during dev/test cycles
+        items:
+          type: string
+        type: array
+      devices:
+        description: >
+          List of device mappings
+
+          ## Support Matrix
+
+          | **Orchestration** | **Supported** |
+
+          |-------------------|---------------|
+
+          | Basic Containers  | Yes           |
+
+          | Swarm             | No            |
+
+          | Kubernetes        | No            |
+
+          ## Recommendation
+
+          This (or an evolution of this) should be supported on all
+          orchestrators
+
+          to support device mappings like GPUs etc.
+        items:
+          type: string
+        type: array
+      DNS:
+        description: >
+          Custom DNS servers. Can be a single value or a list.
+
+          ## Support Matrix
+
+          | **Orchestration** | **Supported** |
+
+          |-------------------|---------------|
+
+          | Basic Containers  | Yes           |
+
+          | Swarm             | Yes           |
+
+          | Kubernetes        | No            |
+
+          ## Recommendation
+
+          Kubernetes does support DNS configuration for pods, so we should
+
+          be able to support this. See
+          https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#poddnsconfig-v1-core
+        items:
+          type: string
+        type: array
+      dns_search:
+        description: >
+          Custom DNS search domains. Can be a single value or a list.
+
+          ## Support Matrix
+
+          | **Orchestration** | **Supported** |
+
+          |-------------------|---------------|
+
+          | Basic Containers  | Yes           |
+
+          | Swarm             | Yes           |
+
+          | Kubernetes        | No            |
+
+          ## Recommendation
+
+          Kubernetes does support DNS configuration for pods, so we should
+
+          be able to support this. See
+          https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#poddnsconfig-v1-core
+        items:
+          type: string
+        type: array
+      domainname:
+        description: >
+          ## Support Matrix
+
+          | **Orchestration** | **Supported** |
+
+          |-------------------|---------------|
+
+          | Basic Containers  | Yes           |
+
+          | Swarm             | Yes           |
+
+          | Kubernetes        | No            |
+
+          ## Recommendation
+
+          Kubernetes does support DNS configuration for pods, so we should
+
+          be able to support this. See
+          https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#poddnsconfig-v1-core
+        type: string
+      expose:
+        description: |
+          Expose ports without publishing them to the host machine -
+          they’ll only be accessible to linked services. Only the
+          internal port can be specified
+          ## Support Matrix
+          | **Orchestration** | **Supported** |
+          |-------------------|---------------|
+          | Basic Containers  | Yes           |
+          | Swarm             | Yes           |
+          | Kubernetes        | No            |
+          ## Recommendation
+          We should support this so tighter network policies can be established
+        items:
+          type: string
+        type: array
+      external_links:
+        description: >
+          Link to containers started outside this docker-compose.yml or
+
+          even outside of Compose, especially for containers that provide
+
+          shared or common services. external_links follow semantics
+
+          similar to the legacy option links when specifying both the
+
+          container name and the link alias
+
+          ## Support Matrix
+
+          | **Orchestration** | **Supported** |
+
+          |-------------------|---------------|
+
+          | Basic Containers  | Yes           |
+
+          | Swarm             | No            |
+
+          | Kubernetes        | No            |
+
+          ## Recommendation
+
+          Drop from the new implementation and warn if detected in the compose
+          file
+        items:
+          type: string
+        type: array
+      init:
+        description: |
+          Run an init inside the container that forwards signals and reaps
+          processes. Either set a boolean value to use the default init,
+          or specify a path to a custom one.
+          ## Support Matrix
+          | **Orchestration** | **Supported** |
+          |-------------------|---------------|
+          | Basic Containers  | Yes           |
+          | Swarm             | Yes           |
+          | Kubernetes        | No            |
+          ## Recommendation
+          Does not look possible with current kubernetes model.
+          Kubernetes has an init concept, but it is meant to be
+          short-lived containers that run to completion.  This was
+          recently added (v3.7) so we should explore why, and see if
+          that makes sense to someday support in kube too.  We might
+          be able to side-band this into dockerd/containerd under the
+          pod, or contribute a change upstream to allow this in a Pod
+          Container definition
+        type: boolean
+      isolation:
+        description: |
+          Specify a container’s isolation technology. On Linux, the
+          only supported value is default. On Windows, acceptable values
+          are default, process and hyperv
+          ## Support Matrix
+          | **Orchestration** | **Supported** |
+          |-------------------|---------------|
+          | Basic Containers  | Yes           |
+          | Swarm             | Yes           |
+          | Kubernetes        | No            |
+          ## Recommendation
+          Add support for kubernetes as it matures upstream
+        type: string
+      links:
+        description: >
+          Link to containers in another service
+
+          ## Support Matrix
+
+          | **Orchestration** | **Supported** |
+
+          |-------------------|---------------|
+
+          | Basic Containers  | Yes           |
+
+          | Swarm             | No            |
+
+          | Kubernetes        | No            |
+
+          ## Recommendation
+
+          Drop from the new implementation and warn if detected in the compose
+          file
+        items:
+          type: string
+        type: array
+      logging:
+        $ref: '#/definitions/LoggingConfig'
+      mac_address:
+        description: >
+          ## Support Matrix
+
+          | **Orchestration** | **Supported** |
+
+          |-------------------|---------------|
+
+          | Basic Containers  | Yes           |
+
+          | Swarm             | No            |
+
+          | Kubernetes        | No            |
+
+          ## Recommendation
+
+          Drop from the new implementation and warn if detected in the compose
+          file
+        type: string
+      network_mode:
+        description: >
+          Network mode. Use the same values as the docker client --network
+          parameter, plus the special form service:[service name]
+
+          ## Support Matrix
+
+          | **Orchestration** | **Supported** |
+
+          |-------------------|---------------|
+
+          | Basic Containers  | Yes           |
+
+          | Swarm             | No            |
+
+          | Kubernetes        | No            |
+
+          ## Recommendation
+
+          Drop from the new implementation and warn if detected in the compose
+          file - use networks instead
+        type: string
+      networks:
+        description: |
+          Networks to join, referencing entries under the top-level networks key
+          ## Support Matrix
+          | **Orchestration** | **Supported** |
+          |-------------------|---------------|
+          | Basic Containers  | Yes           |
+          | Swarm             | Yes           |
+          | Kubernetes        | No            |
+          ## Recommendation
+          Add support for kubernetes by mapping networks to network policies
+        type: object
+        properties:
+          key:
+            type: string
+          value:
+            $ref: '#/definitions/ServiceNetworkConfig'
+      restart:
+        description: |
+          no is the default restart policy, and it does not restart a
+          container under any circumstance. When always is specified,
+          the container always restarts. The on-failure policy restarts
+          a container if the exit code indicates an on-failure error.
+          ## Support Matrix
+          | **Orchestration** | **Supported** |
+          |-------------------|---------------|
+          | Basic Containers  | Yes           |
+          | Swarm             | Yes           |
+          | Kubernetes        | No            |
+          ## Recommendation
+          Add support for kubernetes with PodSpec.restartPolicy
+        type: string
+      security_opt:
+        description: |
+          Override the default labeling scheme for each container
+          ## Support Matrix
+          | **Orchestration** | **Supported** |
+          |-------------------|---------------|
+          | Basic Containers  | Yes           |
+          | Swarm             | No            |
+          | Kubernetes        | No            |
+          ## Recommendation
+          Map to kube with PodSpec.securityContext.seLinuxOptions.
+          Add support to swarm
+        type: array
+        items:
+          type: string
+      shm_size:
+        description: >
+          Size of /dev/shm
+
+          ## Support Matrix
+
+          | **Orchestration** | **Supported** |
+
+          |-------------------|---------------|
+
+          | Basic Containers  | Yes           |
+
+          | Swarm             | No            |
+
+          | Kubernetes        | No            |
+
+          ## Recommendation
+
+          Kube is working to add support eventually
+
+          Swarm should add support (this is a useful feature for some workloads
+          that need larger (or smaller) shm size
+        type: string
+      stop_signal:
+        description: >
+          Sets an alternative signal to stop the container. By default
+
+          stop uses SIGTERM. Setting an alternative signal using
+
+          stop_signal causes stop to send that signal instead.
+
+          ## Support Matrix
+
+          | **Orchestration** | **Supported** |
+
+          |-------------------|---------------|
+
+          | Basic Containers  | Yes           |
+
+          | Swarm             | No            |
+
+          | Kubernetes        | No            |
+
+          ## Recommendation
+
+          Kubernetes has discussed potentially supporting (does support using
+          the image defined stop signal)
+
+          Swarm can easily support (--stop-signal is supported by service
+          create)
+        type: string
+      sysctls:
+        description: >
+          Kernel parameters to set in the container. You can use either an array
+          or a dictionary.
+
+          ## Support Matrix
+
+          | **Orchestration** | **Supported** |
+
+          |-------------------|---------------|
+
+          | Basic Containers  | Yes           |
+
+          | Swarm             | No            |
+
+          | Kubernetes        | No            |
+
+          ## Recommendation
+
+          Should add to swarm
+
+          Kubernetes can support via PodSpec.securityContext.sysctls
+        type: array
+        items:
+          type: string
+      ulimits:
+        description: >
+          Override the default ulimits for a container. You can either specify a
+          single limit as an integer or soft/hard limits as a mapping
+
+          ## Support Matrix
+
+          | **Orchestration** | **Supported** |
+
+          |-------------------|---------------|
+
+          | Basic Containers  | Yes           |
+
+          | Swarm             | No            |
+
+          | Kubernetes        | No            |
+
+          ## Recommendation
+
+          Might be useful to add to swarm
+
+          Kube has had an open issue for a long time to support -
+          https://github.com/kubernetes/kubernetes/issues/3595
+        type: object
+        properties:
+          key:
+            type: string
+          value:
+            $ref: '#/definitions/UlimitsConfig'
+      userns_mode:
+        description: >
+          Set to `host` disables the user namespace for this service, if Docker
+          daemon is configured with user namespaces
+
+          ## Support Matrix
+
+          | **Orchestration** | **Supported** |
+
+          |-------------------|---------------|
+
+          | Basic Containers  | Yes           |
+
+          | Swarm             | No            |
+
+          | Kubernetes        | No            |
+
+          ## Recommendation
+
+          userns isn't supported today for EE which is a security feature gap -
+          if we added it, this potentially
+
+          becomes a more important feature to flesh out and support
+        type: string
+  ServiceConfigObjConfig:
+    description: ServiceConfigObjConfig is the config obj configuration for a service
+    properties:
+      gid:
+        type: string
+      mode:
+        format: int64
+        type: integer
+      source:
+        type: string
+      target:
+        type: string
+      uid:
+        type: string
+  ServicePortConfig:
+    description: ServicePortConfig is the port configuration for a service
+    properties:
+      mode:
+        type: string
+      protocol:
+        type: string
+      published:
+        format: int64
+        type: integer
+      target:
+        format: int64
+        type: integer
+  ServiceSecretConfig:
+    description: ServiceSecretConfig is the secret configuration for a service
+    properties:
+      gid:
+        type: string
+      mode:
+        format: int64
+        type: integer
+      source:
+        type: string
+      target:
+        type: string
+      uid:
+        type: string
+  ServiceVolumeConfig:
+    description: ServiceVolumeConfig are references to a volume used by a service
+    properties:
+      read_only:
+        type: boolean
+      source:
+        type: string
+      target:
+        type: string
+      type:
+        type: string
+      consistency:
+        description: |
+          On Docker 17.04 CE Edge and up, including 17.06 CE Edge and
+          Stable, you can configure container-and-host consistency
+          requirements for bind-mounted directories in Compose files
+          to allow for better performance on read/write of volume
+          mounts. These options address issues specific to osxfs file
+          sharing, and therefore are only applicable on Docker for Mac.
+          ## Support Matrix
+          | **Orchestration** | **Supported** |
+          |-------------------|---------------|
+          | Basic Containers  | Yes           |
+          | Swarm             | Yes           |
+          | Kubernetes        | No            |
+          ## Recommendation
+          Not sure if this is something we want to support for kube on desktop
+        type: string
+      bind:
+        description: >
+          Supported by kubernetes today but not properly typed - see
+          https://github.com/docker/kamoulox-compose/blob/master/docs/mapping.md#volumes
+        $ref: '#/definitions/ServiceVolumeBind'
+      volume:
+        description: >
+          Supported by kubernetes today but not properly typed - see
+          https://github.com/docker/kamoulox-compose/blob/master/docs/mapping.md#volumes
+        $ref: '#/definitions/ServiceVolumeVolume'
+      tmpfs:
+        description: >
+          Supported by kubernetes today but not properly typed - see
+          https://github.com/docker/kamoulox-compose/blob/master/docs/mapping.md#volumes
+        $ref: '#/definitions/ServiceVolumeTmpfs'
+  ServiceVolumeBind:
+    properties:
+      Propagation:
+        type: string
+  ServiceVolumeVolume:
+    properties:
+      nocopy:
+        type: boolean
+  ServiceVolumeTmpfs:
+    properties:
+      size:
+        format: long
+        type: number
+  ConfigObjConfig:
+    description: ConfigObjConfig is the config for the "Config" object
+    properties:
+      external:
+        type: boolean
+      file:
+        type: string
+      labels:
+        additionalProperties:
+          type: string
+        type: object
+      name:
+        type: string
+      initialValue:
+        description: |
+          If `external` is set to false, this field is used during create
+          to initialize the value of the named Config.  The initialValue
+          is "write only" and will never be populated during subsequent
+          Read operations of the ConfigObjConfig.  If the resulting Stack
+          is later deleted, this underlying Config object will also be removed.
+        type: string
+        format: binary
+  Constraint:
+    description: Constraint defines a constraint and it's operator (== or !=)
+    properties:
+      Operator:
+        type: string
+      Value:
+        type: string
+    required:
+      - Value
+      - Operator
+  Constraints:
+    description: Constraints lists constraints that can be set on the service
+    properties:
+      Architecture:
+        $ref: '#/definitions/Constraint'
+      Hostname:
+        $ref: '#/definitions/Constraint'
+      MatchLabels:
+        additionalProperties:
+          $ref: '#/definitions/Constraint'
+        type: object
+      OperatingSystem:
+        $ref: '#/definitions/Constraint'
+    required:
+      - OperatingSystem
+      - Architecture
+      - Hostname
+      - MatchLabels
+  DeployConfig:
+    description: DeployConfig is the deployment configuration for a service
+    properties:
+      labels:
+        additionalProperties:
+          type: string
+        type: object
+      mode:
+        type: string
+      placement:
+        $ref: '#/definitions/Placement'
+      replicas:
+        format: int64
+        type: integer
+      resources:
+        $ref: '#/definitions/Resources'
+      restart_policy:
+        $ref: '#/definitions/RestartPolicy'
+      update_config:
+        $ref: '#/definitions/UpdateConfig'
+      rollback_config:
+        description: |
+          ## Support Matrix
+          | **Orchestration** | **Supported** |
+          |-------------------|---------------|
+          | Basic Containers  | No           |
+          | Swarm             | Yes           |
+          | Kubernetes        | No           |
+        $ref: '#/definitions/UpdateConfig'
+      endpoint_mode:
+        description: |
+          ## Support Matrix
+          | **Orchestration** | **Supported** |
+          |-------------------|---------------|
+          | Basic Containers  | No           |
+          | Swarm             | Yes           |
+          | Kubernetes        | No           |
+        type: string
+  External:
+    description: >-
+      External identifies a Volume or Network as a reference to a resource that
+      is not managed, and should already exist. External.name is deprecated and
+      replaced by Volume.name
+    properties:
+      external:
+        type: boolean
+      name:
+        type: string
+  HealthCheckConfig:
+    description: HealthCheckConfig the healthcheck configuration for a service
+    properties:
+      interval:
+        format: int64
+        type: integer
+      retries:
+        format: int64
+        type: integer
+      test:
+        items:
+          type: string
+        type: array
+      timeout:
+        format: int64
+        type: integer
+      start_period:
+        description: >
+          ## Support Matrix
+
+          | **Orchestration** | **Supported** |
+
+          |-------------------|---------------|
+
+          | Basic Containers  | Yes           |
+
+          | Swarm             | Yes           |
+
+          | Kubernetes        | No            |
+
+          ## Recommendation
+
+          Very close to kube's Probe.initialDelaySecond so we should consider
+          mapping to that
+
+          and adding kube support
+        format: int64
+        type: integer
+      disable:
+        description: >
+          ## Support Matrix
+
+          | **Orchestration** | **Supported** |
+
+          |-------------------|---------------|
+
+          | Basic Containers  | Yes           |
+
+          | Swarm             | Yes           |
+
+          | Kubernetes        | No            |
+
+          ## Recommendation
+
+          No reason not to support this on kube as a way to turn it off
+          (use-case might be it's broken
+
+          in the image and you want to forceably override it)
+
+
+          One note though - kube ignores docker image health information, but we
+          should extract that
+
+          out and use it as a value add.
+        type: boolean
+  Placement:
+    description: Placement constraints for the service
+    properties:
+      constraints:
+        $ref: '#/definitions/Constraints'
+  Resource:
+    description: Resource is a resource to be limited or reserved
+    properties:
+      cpus:
+        type: string
+      memory:
+        format: int64
+        type: integer
+      generic_resources:
+        description: |
+          User defined resources
+          ## Support Matrix
+          | **Orchestration** | **Supported** |
+          |-------------------|---------------|
+          | Basic Containers  | No            |
+          | Swarm             | Yes           |
+          | Kubernetes        | No            |
+          ## Recommendation
+          Kube has device support which should hopefully map
+        type: array
+        items:
+          $ref: '#/definitions/GenericResource'
+  GenericResource:
+    properties:
+      discrete_resource_spec:
+        $ref: '#/definitions/DiscreteGenericResource'
+  DiscreteGenericResource:
+    properties:
+      kind:
+        type: string
+      value:
+        format: long
+        type: number
+  Resources:
+    description: Resources the resource limits and reservations
+    properties:
+      limits:
+        $ref: '#/definitions/Resource'
+      reservations:
+        $ref: '#/definitions/Resource'
+  RestartPolicy:
+    description: RestartPolicy is the service restart policy
+    properties:
+      condition:
+        type: string
+      Delay:
+        description: |
+          ## Support Matrix
+          | **Orchestration** | **Supported** |
+          |-------------------|---------------|
+          | Basic Containers  | No            |
+          | Swarm             | Yes           |
+          | Kubernetes        | No            |
+          ## Recommendation
+          Does not map cleanly to built-in features in kube, but we could
+          potentially use features like Container Lifecycle Hooks to implement
+          compatibility if this is a high-demand feature.
+        format: int64
+        type: integer
+      max_attempts:
+        description: |
+          ## Support Matrix
+          | **Orchestration** | **Supported** |
+          |-------------------|---------------|
+          | Basic Containers  | No            |
+          | Swarm             | Yes           |
+          | Kubernetes        | No            |
+          ## Recommendation
+          Does not map cleanly to built-in features in kube, but we could
+          potentially use features like Container Lifecycle Hooks to implement
+          compatibility if this is a high-demand feature.
+        format: uint64
+        type: integer
+      Window:
+        description: |
+          ## Support Matrix
+          | **Orchestration** | **Supported** |
+          |-------------------|---------------|
+          | Basic Containers  | No            |
+          | Swarm             | Yes           |
+          | Kubernetes        | No            |
+          ## Recommendation
+          Does not map cleanly to built-in features in kube, but we could
+          potentially use features like Container Lifecycle Hooks to implement
+          compatibility if this is a high-demand feature.
+        format: int64
+        type: integer
+  UpdateConfig:
+    description: UpdateConfig is the service update configuration
+    properties:
+      paralellism:
+        format: int64
+        type: integer
+      Delay:
+        description: >
+          ## Support Matrix
+
+          | **Orchestration** | **Supported** |
+
+          |-------------------|---------------|
+
+          | Basic Containers  | No            |
+
+          | Swarm             | Yes           |
+
+          | Kubernetes        | No            |
+
+          ## Recommendation
+
+          Not a direct map to kube - might be possible with a custom scheduler,
+          but at a high cost
+
+          Likely something we'd omit from kube for now
+        format: int64
+        type: integer
+      failure_action:
+        description: >
+          ## Support Matrix
+
+          | **Orchestration** | **Supported** |
+
+          |-------------------|---------------|
+
+          | Basic Containers  | No            |
+
+          | Swarm             | Yes           |
+
+          | Kubernetes        | No            |
+
+          ## Recommendation
+
+          Not a direct map to kube - might be possible with a custom scheduler,
+          but at a high cost
+
+          Likely something we'd omit from kube for now
+        type: string
+      monitor:
+        description: >
+          ## Support Matrix
+
+          | **Orchestration** | **Supported** |
+
+          |-------------------|---------------|
+
+          | Basic Containers  | No            |
+
+          | Swarm             | Yes           |
+
+          | Kubernetes        | No            |
+
+          ## Recommendation
+
+          Not a direct map to kube - might be possible with a custom scheduler,
+          but at a high cost
+
+          Likely something we'd omit from kube for now
+        format: int64
+        type: integer
+      max_failure_ratio:
+        description: >
+          ## Support Matrix
+
+          | **Orchestration** | **Supported** |
+
+          |-------------------|---------------|
+
+          | Basic Containers  | No            |
+
+          | Swarm             | Yes           |
+
+          | Kubernetes        | No            |
+
+          ## Recommendation
+
+          Not a direct map to kube - might be possible with a custom scheduler,
+          but at a high cost
+
+          Likely something we'd omit from kube for now
+        format: float
+        type: number
+      Order:
+        description: >
+          ## Support Matrix
+
+          | **Orchestration** | **Supported** |
+
+          |-------------------|---------------|
+
+          | Basic Containers  | No            |
+
+          | Swarm             | Yes           |
+
+          | Kubernetes        | No            |
+
+          ## Recommendation
+
+          Not a direct map to kube - might be possible with a custom scheduler,
+          but at a high cost
+
+          Likely something we'd omit for now
+        type: string
+  SecretConfig:
+    description: SecretConfig for a secret
+    properties:
+      external:
+        type: boolean
+      file:
+        type: string
+      labels:
+        additionalProperties:
+          type: string
+        type: object
+      name:
+        type: string
+      initialValue:
+        description: |
+          If `external` is set to false, this field is used during create
+          to initialize the value of the named secret.  The initialValue
+          is "write only" and will never be populated during subsequent
+          Read operations of the SecretConfig.  If the resulting Stack
+          is later deleted, this underlying Secret will also be removed.
+        type: string
+        format: binary
+  UlimitsConfig:
+    properties:
+      single:
+        format: int32
+        type: number
+      soft:
+        format: int32
+        type: number
+      hard:
+        format: int32
+        type: number
+  ServiceNetworkConfig:
+    properties:
+      aliases:
+        type: array
+        items:
+          type: string
+      ipv4_address:
+        type: string
+      ipv6_address:
+        type: string
+  CredentialSpec:
+    properties:
+      file:
+        type: string
+      registry:
+        type: string
+  NetworkConfig:
+    description: >-
+      Describes the networking configuration for this Stack. When deploying a
+      stack on classic containers, this will define a new bridge network with
+      the given name.  When deploying on swarm, this network will be defined as
+      an overlay network (or external network already defined in the cluster)
+      When deploying on kubernetes, the network will be mapped to a network
+      policy to provide the desired isolation. # Omitted: #  attachable - we
+      should be able to determine this on the fly given context
+    properties:
+      name:
+        type: string
+      external:
+        $ref: '#/definitions/External'
+      internal:
+        type: boolean
+      labels:
+        additionalProperties:
+          type: string
+        type: object
+      driver:
+        description: >-
+          Specifies an explicit driver for classic and swarm networks, ignored
+          on kubernetes
+        type: string
+      driverOptions:
+        description: >-
+          Specifies an driver options for classic and swarm networks, ignored on
+          kubernetes
+        type: array
+        items:
+          type: object
+          properties:
+            key:
+              type: string
+            value:
+              type: string
+      ipam:
+        $ref: '#/definitions/IPAMConfig'
+  IPAMConfig:
+    description: >-
+      Specifies an explicit IPAM configuration for a classic container or swarm
+      application.  This is ignored on kubernetes.
+    properties:
+      driver:
+        type: string
+      config:
+        type: array
+        items:
+          type: object
+          properties:
+            subnet:
+              type: string
+  VolumeConfig:
+    description: >-
+      Describes the volume configuration for this Stack. When deploying a stack
+      on classic containers or swarm, this will define a new volume with the
+      given name. When deploying on kubernetes, some magic happens - lets figure
+      it out...
+    properties:
+      name:
+        type: string
+      external:
+        $ref: '#/definitions/External'
+      labels:
+        additionalProperties:
+          type: string
+        type: object
+      driver:
+        description: >-
+          Specifies an explicit driver for classic and swarm networks, ignored
+          on kubernetes
+        type: string
+      driverOptions:
+        description: >-
+          Specifies an driver options for classic and swarm networks, ignored on
+          kubernetes
+        type: array
+        items:
+          type: object
+          properties:
+            key:
+              type: string
+            value:
+              type: string
+  LoggingConfig:
+    description: |
+      Logging configuration for the service
+      ## Support Matrix
+      | **Orchestration** | **Supported** |
+      |-------------------|---------------|
+      | Basic Containers  | Yes           |
+      | Swarm             | Yes           |
+      | Kubernetes        | No            |
+      ## Recommendation
+      Warn if using kubernetes that logging is configured globally on a node
+    properties:
+      driver:
+        type: string
+      options:
+        type: array
+        items:
+          type: object
+          properties:
+            key:
+              type: string
+            value:
+              type: string
+
