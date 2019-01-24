@@ -1,11 +1,17 @@
+ARG GOLANG_BASE
 ARG ALPINE_BASE
-FROM ${ALPINE_BASE} as builder
+FROM ${GOLANG_BASE} as builder
+RUN apk -v add --update ca-certificates jq curl git make bash gcc musl-dev
 
-RUN echo "Would be building"
 
-FROM ${ALPINE_BASE} as unit-test
+COPY . /go/src/github.com/docker/stacks
+WORKDIR /go/src/github.com/docker/stacks
+RUN echo "TODO Would be building"
 
-RUN echo "would be doing unit test and lint stuff here"
+FROM builder as unit-test
+# TODO - temporary unit test wiring...
+RUN go test -covermode=count -coverprofile=/cover.out -v $(go list ./pkg/compose/*)
+RUN echo "TODO would be doing lint stuff here"
 
 FROM ${ALPINE_BASE} as controller
 
