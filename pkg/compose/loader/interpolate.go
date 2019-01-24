@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"strings"
 
-	interp "github.com/docker/stacks/compose/interpolation"
+	interp "github.com/docker/stacks/pkg/compose/interpolation"
 	"github.com/pkg/errors"
 )
 

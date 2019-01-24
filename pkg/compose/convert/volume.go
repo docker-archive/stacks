@@ -2,7 +2,7 @@ package convert
 
 import (
 	"github.com/docker/docker/api/types/mount"
-	composetypes "github.com/docker/stacks/compose/types"
+	composetypes "github.com/docker/stacks/pkg/compose/types"
 	"github.com/pkg/errors"
 )
 

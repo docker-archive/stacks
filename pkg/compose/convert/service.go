@@ -11,9 +11,9 @@ import (
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/client"
-	"github.com/docker/stacks/compose/parser"
-	composetypes "github.com/docker/stacks/compose/types"
-	"github.com/docker/stacks/opts"
+	"github.com/docker/stacks/pkg/compose/parser"
+	composetypes "github.com/docker/stacks/pkg/compose/types"
+	"github.com/docker/stacks/pkg/opts"
 	"github.com/pkg/errors"
 )
 

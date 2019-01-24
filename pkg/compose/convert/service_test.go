@@ -12,7 +12,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
-	composetypes "github.com/docker/stacks/compose/types"
+	composetypes "github.com/docker/stacks/pkg/compose/types"
 	"github.com/pkg/errors"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"

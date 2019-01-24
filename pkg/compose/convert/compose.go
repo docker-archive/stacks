@@ -7,7 +7,7 @@ import (
 	"github.com/docker/docker/api/types"
 	networktypes "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/swarm"
-	composetypes "github.com/docker/stacks/compose/types"
+	composetypes "github.com/docker/stacks/pkg/compose/types"
 )
 
 const (

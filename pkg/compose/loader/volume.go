@@ -6,7 +6,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/docker/docker/api/types/mount"
-	"github.com/docker/stacks/compose/types"
+	"github.com/docker/stacks/pkg/compose/types"
 	"github.com/pkg/errors"
 )
 

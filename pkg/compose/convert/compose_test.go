@@ -5,7 +5,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/network"
-	composetypes "github.com/docker/stacks/compose/types"
+	composetypes "github.com/docker/stacks/pkg/compose/types"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"
 	"gotest.tools/fs"

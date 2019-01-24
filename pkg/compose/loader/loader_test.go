@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/stacks/compose/types"
+	"github.com/docker/stacks/pkg/compose/types"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/sirupsen/logrus"
 	"gotest.tools/assert"
