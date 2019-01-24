@@ -10,7 +10,7 @@ RUN echo "TODO Would be building"
 
 FROM builder as unit-test
 # TODO - temporary unit test wiring...
-RUN go test -covermode=count -coverprofile=/cover.out -v $(go list ./pkg/compose/*)
+RUN go test -covermode=count -coverprofile=/cover.out -v $(go list ./pkg/...)
 RUN echo "TODO would be doing lint stuff here"
 
 FROM ${ALPINE_BASE} as controller
