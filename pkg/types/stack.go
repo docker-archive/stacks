@@ -85,3 +85,14 @@ type StackTask struct {
 
 // OrchestratorChoice This field specifies which orchestrator the stack is deployed on.
 type OrchestratorChoice string
+
+const (
+	// OrchestratorSwarm defines the OrchestratorChoice valud for Swarm
+	OrchestratorSwarm = "swarm"
+
+	// OrchestratorKubernetes defines the OrchestratorChoice valud for Kubernetes
+	OrchestratorKubernetes = "kubernetes"
+
+	// OrchestratorNone defines the OrchestratorChoice valud for no orchestrator (basic containers)
+	OrchestratorNone = "none"
+)
