@@ -24,7 +24,7 @@
     "gofmt",
     "goimports",
     "golint",
-    "gosimple",
+    "staticcheck",
     "ineffassign",
     "interfacer",
     "lll",
