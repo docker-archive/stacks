@@ -5,16 +5,17 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/docker/stacks/pkg/types"
+
 	"github.com/stretchr/testify/require"
 )
 
-func generateFixtures(n int) []*Stack {
-	fixtures := []*Stack{}
+func generateFixtures(n int) []*types.Stack {
+	fixtures := []*types.Stack{}
 	for i := 1; i < n+1; i++ {
-		fixtures = append(fixtures, &Stack{
-			ID:       fmt.Sprintf("stack%d", i),
-			Metadata: &StackMetadata{},
-			Spec:     &StackSpec{},
+		fixtures = append(fixtures, &types.Stack{
+			ID:   fmt.Sprintf("stack%d", i),
+			Spec: types.StackSpec{},
 		})
 	}
 
