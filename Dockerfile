@@ -2,7 +2,7 @@ ARG GOLANG_BASE
 ARG ALPINE_BASE
 FROM ${GOLANG_BASE} as builder
 ARG     GOMETALINTER_SHA=v2.0.6
-RUN apk -v add --update ca-certificates jq curl git make bash gcc musl-dev && \
+RUN apk -v add --update ca-certificates jq curl git make bash gcc musl-dev linux-headers && \
     go get -d github.com/alecthomas/gometalinter && \
     cd /go/src/github.com/alecthomas/gometalinter && \
     git checkout -q "$GOMETALINTER_SHA" && \
