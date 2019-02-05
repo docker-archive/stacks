@@ -1,7 +1,7 @@
 package interpolation
 
 import (
-	"os"
+	"fmt"
 	"strings"
 
 	"github.com/docker/stacks/pkg/compose/template"
@@ -30,7 +30,7 @@ type Cast func(value string) (interface{}, error)
 // Interpolate replaces variables in a string with the values from a mapping
 func Interpolate(config map[string]interface{}, opts Options) (map[string]interface{}, error) {
 	if opts.LookupValue == nil {
-		opts.LookupValue = os.LookupEnv
+		return nil, fmt.Errorf("missing LookupValue helper function")
 	}
 	if opts.TypeCastMapping == nil {
 		opts.TypeCastMapping = make(map[Path]Cast)

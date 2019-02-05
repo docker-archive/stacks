@@ -31,8 +31,8 @@ type StackSpec struct {
 	Services       []types.ServiceConfig            `json:"services,omitempty"`
 	Secrets        map[string]types.SecretConfig    `json:"secrets,omitempty"`
 	Configs        map[string]types.ConfigObjConfig `json:"configs,omitempty"`
-	Networks       []types.NetworkConfig            `json:"networks,omitempty"`
-	Volumes        []types.VolumeConfig             `json:"volumes,omitempty"`
+	Networks       map[string]types.NetworkConfig   `json:"networks,omitempty"`
+	Volumes        map[string]types.VolumeConfig    `json:"volumes,omitempty"`
 	StackImage     string                           `json:"stack_image,omitempty"`
 	PropertyValues []string                         `json:"property_values,omitempty"`
 	Collection     string                           `json:"collection,omitempty"`
@@ -96,3 +96,8 @@ const (
 	// OrchestratorNone defines the OrchestratorChoice valud for no orchestrator (basic containers)
 	OrchestratorNone = "none"
 )
+
+// ComposeInput carries one or more compose files for parsing by the server
+type ComposeInput struct {
+	ComposeFiles []string `json:"compose_files"`
+}

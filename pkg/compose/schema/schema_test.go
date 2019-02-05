@@ -99,7 +99,7 @@ func TestValidateSecretConfigNames(t *testing.T) {
 
 func TestValidateInvalidVersion(t *testing.T) {
 	config := dict{
-		"version": "2.1",
+		"version": "1.99",
 		"services": dict{
 			"foo": dict{
 				"image": "busybox",
@@ -107,8 +107,8 @@ func TestValidateInvalidVersion(t *testing.T) {
 		},
 	}
 
-	err := Validate(config, "2.1")
-	assert.ErrorContains(t, err, "unsupported Compose file version: 2.1")
+	err := Validate(config, "1.99")
+	assert.ErrorContains(t, err, "unsupported Compose file version: 1.99")
 }
 
 type array []interface{}

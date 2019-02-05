@@ -14,7 +14,8 @@ var patternString = fmt.Sprintf(
 	delimiter, delimiter, substitution, substitution,
 )
 
-var defaultPattern = regexp.MustCompile(patternString)
+// DefaultPattern contains the default regex for variables in a compose file
+var DefaultPattern = regexp.MustCompile(patternString)
 
 // DefaultSubstituteFuncs contains the default SubstituteFunc used by the docker cli
 var DefaultSubstituteFuncs = []SubstituteFunc{
@@ -90,14 +91,14 @@ func SubstituteWith(template string, mapping Mapping, pattern *regexp.Regexp, su
 
 // Substitute variables in the string with their values
 func Substitute(template string, mapping Mapping) (string, error) {
-	return SubstituteWith(template, mapping, defaultPattern, DefaultSubstituteFuncs...)
+	return SubstituteWith(template, mapping, DefaultPattern, DefaultSubstituteFuncs...)
 }
 
 // ExtractVariables returns a map of all the variables defined in the specified
 // composefile (dict representation) and their default value if any.
 func ExtractVariables(configDict map[string]interface{}, pattern *regexp.Regexp) map[string]string {
 	if pattern == nil {
-		pattern = defaultPattern
+		pattern = DefaultPattern
 	}
 	return recurseExtract(configDict, pattern)
 }

@@ -58,7 +58,7 @@ func normalizeVersion(version string) string {
 func Validate(config map[string]interface{}, version string) error {
 	schemaData, err := _escFSByte(false, fmt.Sprintf("/data/config_schema_v%s.json", version))
 	if err != nil {
-		return errors.Errorf("unsupported Compose file version: %s", version)
+		return errors.Errorf("unsupported Compose file version: %s: %s", version, err)
 	}
 
 	schemaLoader := gojsonschema.NewStringLoader(string(schemaData))

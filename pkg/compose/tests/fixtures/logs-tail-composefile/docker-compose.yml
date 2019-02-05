@@ -1,0 +1,3 @@
+simple:
+  image: busybox:latest
+  command: sh -c "echo w && echo x && echo y && echo z"

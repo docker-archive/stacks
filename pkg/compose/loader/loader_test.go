@@ -385,7 +385,7 @@ services:
 	assert.ErrorContains(t, err, "version")
 
 	_, err = loadYAML(`
-version: "2.0"
+version: "1.99"
 services:
   foo:
     image: busybox

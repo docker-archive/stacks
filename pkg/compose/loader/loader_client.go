@@ -3,32 +3,67 @@ package loader
 import (
 	"fmt"
 	"io/ioutil"
-	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 
+	"github.com/docker/stacks/pkg/compose/defaults"
+	"github.com/docker/stacks/pkg/compose/interpolation"
 	"github.com/docker/stacks/pkg/compose/schema"
 	composetypes "github.com/docker/stacks/pkg/compose/types"
+	"github.com/docker/stacks/pkg/types"
+
 	"github.com/pkg/errors"
 )
 
-// TODO - this file needs some significant refactoring
-// * Refactor to just a simple/thin helper to read in one or more compose files
-// * Refactor the env var parsing logic so it tracks unsubstituted variables, but doesn't try to replace them
-//   during the parsing
-// * Move the brunt of the parsing logic to something that can be wired up via an API route, and create
-//   a type that's a list of compose files, and the return would be the spec plug env vars that need to be filled in
+// TODO - this file needs some refactoring
 
-// LoadComposefile parse the composefile specified in the cli and returns its Config and version.
-func LoadComposefile(composefiles []string) (*composetypes.Config, error) {
-	configDetails, err := getConfigDetails(composefiles)
+// LoadComposefile will load the compose files into ComposeInput which can be sent to the server
+// for parsing into a Stack representation
+func LoadComposefile(composefiles []string) (*types.ComposeInput, error) {
+	input := types.ComposeInput{}
+	for _, filename := range composefiles {
+		bytes, err := ioutil.ReadFile(filename)
+		if err != nil {
+			return nil, err
+		}
+		input.ComposeFiles = append(input.ComposeFiles, string(bytes))
+	}
+	return &input, nil
+}
+
+// TODO Remainder of this is server side logic that should move someplace else...
+
+// ParseComposeInput will convert the ComposeInput into the StackCreate type
+// If the ComposeInput contains any variables, those will be
+// listed in the StackSpec.PropertyValues field, so they can be filled
+// in prior to sending the StackCreate to the Create API.  If defaults
+// are defined in the compose file(s) those defaults will be included.
+func ParseComposeInput(input types.ComposeInput) (*types.StackCreate, error) {
+	configDetails, err := getConfigDetails(input)
 	if err != nil {
 		return nil, err
 	}
 
 	dicts := getDictsFrom(configDetails.ConfigFiles)
-	config, err := Load(configDetails)
+
+	// Wire up interpolation as a no-op so we can track the variables in play and default values
+	propertiesMap := map[string]string{}
+	interpolateOpts := interpolation.Options{
+		LookupValue: func(key string) (string, bool) {
+			vals := strings.SplitN(key, "=", 2)
+			if len(vals) > 1 {
+				propertiesMap[vals[0]] = vals[1]
+			} else if _, exists := propertiesMap[vals[0]]; !exists {
+				propertiesMap[vals[0]] = ""
+			}
+			return "", false
+		},
+		Substitute: defaults.RecordVariablesWithDefaults,
+	}
+	config, err := Load(configDetails, func(opts *Options) {
+		opts.Interpolate = &interpolateOpts
+		opts.SkipValidation = true
+	})
 	if err != nil {
 		if fpe, ok := err.(*ForbiddenPropertiesError); ok {
 			return nil, errors.Errorf("Compose file contains unsupported options:\n\n%s\n",
@@ -49,7 +84,25 @@ func LoadComposefile(composefiles []string) (*composetypes.Config, error) {
 		fmt.Printf("Ignoring deprecated options:\n\n%s\n\n",
 			propertyWarnings(deprecatedProperties))
 	}
-	return config, nil
+	properties := []string{}
+	for key, value := range propertiesMap {
+		if len(value) > 0 {
+			properties = append(properties, fmt.Sprintf("%s=%s", key, value))
+		} else {
+			properties = append(properties, key)
+		}
+	}
+	return &types.StackCreate{
+		Spec: types.StackSpec{
+			Services:       config.Services,
+			Secrets:        config.Secrets,
+			Configs:        config.Configs,
+			Networks:       config.Networks,
+			Volumes:        config.Volumes,
+			PropertyValues: properties,
+		},
+	}, nil
+
 }
 
 func getDictsFrom(configFiles []composetypes.ConfigFile) []map[string]interface{} {
@@ -71,56 +124,24 @@ func propertyWarnings(properties map[string]string) string {
 	return strings.Join(msgs, "\n\n")
 }
 
-func getConfigDetails(composefiles []string) (composetypes.ConfigDetails, error) {
+func getConfigDetails(input types.ComposeInput) (composetypes.ConfigDetails, error) {
 	var details composetypes.ConfigDetails
 
-	if len(composefiles) == 0 {
-		return details, errors.New("no composefile(s)")
-	}
-
-	if composefiles[0] == "-" && len(composefiles) == 1 {
-		workingDir, err := os.Getwd()
-		if err != nil {
-			return details, err
-		}
-		details.WorkingDir = workingDir
-	} else {
-		absPath, err := filepath.Abs(composefiles[0])
-		if err != nil {
-			return details, err
-		}
-		details.WorkingDir = filepath.Dir(absPath)
-	}
-
 	var err error
-	details.ConfigFiles, err = loadConfigFiles(composefiles)
+	details.ConfigFiles, err = loadConfigFiles(input)
 	if err != nil {
 		return details, err
 	}
 	// Take the first file version (2 files can't have different version)
 	details.Version = schema.Version(details.ConfigFiles[0].Config)
-	details.Environment, err = buildEnvironment(os.Environ())
 	return details, err
 }
 
-func buildEnvironment(env []string) (map[string]string, error) {
-	result := make(map[string]string, len(env))
-	for _, s := range env {
-		// if value is empty, s is like "K=", not "K".
-		if !strings.Contains(s, "=") {
-			return result, errors.Errorf("unexpected environment %q", s)
-		}
-		kv := strings.SplitN(s, "=", 2)
-		result[kv[0]] = kv[1]
-	}
-	return result, nil
-}
-
-func loadConfigFiles(filenames []string) ([]composetypes.ConfigFile, error) {
+func loadConfigFiles(input types.ComposeInput) ([]composetypes.ConfigFile, error) {
 	var configFiles []composetypes.ConfigFile
 
-	for _, filename := range filenames {
-		configFile, err := loadConfigFile(filename)
+	for _, data := range input.ComposeFiles {
+		configFile, err := loadConfigFile(data)
 		if err != nil {
 			return configFiles, err
 		}
@@ -130,22 +151,15 @@ func loadConfigFiles(filenames []string) ([]composetypes.ConfigFile, error) {
 	return configFiles, nil
 }
 
-func loadConfigFile(filename string) (*composetypes.ConfigFile, error) {
-	var bytes []byte
+func loadConfigFile(data string) (*composetypes.ConfigFile, error) {
 	var err error
 
-	bytes, err = ioutil.ReadFile(filename)
-	if err != nil {
-		return nil, err
-	}
-
-	config, err := ParseYAML(bytes)
+	config, err := ParseYAML([]byte(data))
 	if err != nil {
 		return nil, err
 	}
 
 	return &composetypes.ConfigFile{
-		Filename: filename,
-		Config:   config,
+		Config: config,
 	}, nil
 }

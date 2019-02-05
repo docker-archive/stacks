@@ -872,6 +872,13 @@ func transformStringToDuration(value interface{}) (interface{}, error) {
 func toServicePortConfigs(value string) ([]interface{}, error) {
 	var portConfigs []interface{}
 
+	// Check for variable before interpreting
+	matches := template.DefaultPattern.FindStringSubmatch(value)
+	if matches != nil {
+		portConfigs = append(portConfigs, map[string]struct{}{value: {}})
+		return portConfigs, nil
+	}
+
 	ports, portBindings, err := nat.ParsePortSpecs([]string{value})
 	if err != nil {
 		return nil, err

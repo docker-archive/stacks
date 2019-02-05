@@ -71,10 +71,10 @@ func TestInterpolateWithDefaults(t *testing.T) {
 	}
 	expected := map[string]interface{}{
 		"networks": map[string]interface{}{
-			"foo": "thing_BARZ",
+			"foo": "thing_bar",
 		},
 	}
-	result, err := Interpolate(config, Options{})
+	result, err := Interpolate(config, Options{LookupValue: defaultMapping})
 	assert.NilError(t, err)
 	assert.Check(t, is.DeepEqual(expected, result))
 }
