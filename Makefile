@@ -25,6 +25,9 @@ cover: test
 	    docker cp $(CONTROLLER_IMAGE_NAME)_cover:/cover.out . && docker rm $(CONTROLLER_IMAGE_NAME)_cover
 	go tool cover -html=cover.out
 
+build-mocks:
+	@echo "Generating mocks"
+	mockgen -package=mocks -destination pkg/mocks/mock_backend.go github.com/docker/stacks/pkg/interfaces BackendClient
 
 generate: pkg/compose/schema/bindata.go
 

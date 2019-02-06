@@ -1,3 +1,4 @@
 *.sw*
 cover.out
 pkg/compose/schema/bindata.go
+pkg/mocks/mock_*.go

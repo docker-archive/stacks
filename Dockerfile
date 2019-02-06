@@ -17,7 +17,6 @@ RUN     go get -d github.com/mjibson/esc && \
         rm -rf /go/src/* /go/pkg/*
 
 
-
 COPY . /go/src/github.com/docker/stacks
 WORKDIR /go/src/github.com/docker/stacks
 
@@ -25,6 +24,14 @@ RUN go generate github.com/docker/stacks/pkg/compose/schema
 RUN echo "TODO Would be doing more building..."
 
 FROM builder as unit-test
+
+# The gomock packages need to stay on the GOPATH
+RUN go get github.com/golang/mock/gomock  && \
+    go install github.com/golang/mock/mockgen
+
+# Generate mocks for the current version of the builder
+RUN make build-mocks
+
 # TODO - temporary unit test wiring...
 RUN go test -covermode=count -coverprofile=/cover.out -v $(go list ./pkg/...)
 
