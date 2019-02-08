@@ -40,11 +40,11 @@ type StackSpec struct {
 
 // StackResources links to the running instances of the StackSpec
 type StackResources struct {
-	Services []StackResource `json:"services:omitempty"`
-	Configs  []StackResource `json:"configs:omitempty"`
-	Secrets  []StackResource `json:"secrets:omitempty"`
-	Networks []StackResource `json:"networks:omitempty"`
-	Volumes  []StackResource `json:"volumes:omitempty"`
+	Services []StackResource `json:"services,omitempty"`
+	Configs  []StackResource `json:"configs,omitempty"`
+	Secrets  []StackResource `json:"secrets,omitempty"`
+	Networks []StackResource `json:"networks,omitempty"`
+	Volumes  []StackResource `json:"volumes,omitempty"`
 }
 
 // StackResource contains a link to a single instance of the spec
