@@ -101,3 +101,9 @@ const (
 type ComposeInput struct {
 	ComposeFiles []string `json:"compose_files"`
 }
+
+// StackCreateResponse is the response type of the Create Stack
+// operation.
+type StackCreateResponse struct {
+	ID string
+}

@@ -16,6 +16,9 @@ test:
 lint:
 	docker build $(BUILD_ARGS) -t $(ORG)/$(CONTROLLER_IMAGE_NAME):lint --target lint .
 
+standalone:
+	docker build $(BUILD_ARGS) -t $(ORG)/$(CONTROLLER_IMAGE_NAME):$(TAG) --target standalone .
+
 # For developers...
 
 

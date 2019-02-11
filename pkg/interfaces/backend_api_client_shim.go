@@ -208,7 +208,7 @@ func (c *BackendAPIClientShim) AddStack(spec types.StackSpec) (string, error) {
 }
 
 // UpdateStack updates a stack.
-func (c *BackendAPIClientShim) UpdateStack(id string, spec *types.StackSpec) error {
+func (c *BackendAPIClientShim) UpdateStack(id string, spec types.StackSpec) error {
 	err := c.StackStore.UpdateStack(id, spec)
 	go func() {
 		c.stackEvents <- events.Message{

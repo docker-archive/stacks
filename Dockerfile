@@ -21,7 +21,10 @@ COPY . /go/src/github.com/docker/stacks
 WORKDIR /go/src/github.com/docker/stacks
 
 RUN go generate github.com/docker/stacks/pkg/compose/schema
-RUN echo "TODO Would be doing more building..."
+
+RUN echo "Building standalone runtime..."
+
+RUN go build -o bin/standalone ./cmd/standalone
 
 FROM builder as unit-test
 
@@ -38,6 +41,7 @@ RUN go test -covermode=count -coverprofile=/cover.out -v $(go list ./pkg/...)
 FROM builder as lint
 RUN gometalinter --config gometalinter.json ./...
 
-FROM ${ALPINE_BASE} as controller
+FROM ${ALPINE_BASE} as standalone
 
-RUN echo "Would be copying build results from builder"
+COPY --from=builder /go/src/github.com/docker/stacks/bin/standalone /standalone
+ENTRYPOINT ["/standalone", "server"]

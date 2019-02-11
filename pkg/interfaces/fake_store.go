@@ -10,7 +10,7 @@ import (
 
 // FakeStackStore stores stacks
 type FakeStackStore struct {
-	stacks map[string]*types.Stack
+	stacks map[string]types.Stack
 	sync.RWMutex
 	curID int
 }
@@ -18,7 +18,9 @@ type FakeStackStore struct {
 // NewFakeStackStore creates a new StackStore
 func NewFakeStackStore() StackStore {
 	return &FakeStackStore{
-		stacks: make(map[string]*types.Stack),
+		stacks: make(map[string]types.Stack),
+		// Don't start from ID 0, to catch any uninitialized types.
+		curID: 1,
 	}
 }
 
@@ -34,7 +36,7 @@ func (s *FakeStackStore) AddStack(spec types.StackSpec) (string, error) {
 	s.Lock()
 	defer s.Unlock()
 
-	stack := &types.Stack{
+	stack := types.Stack{
 		ID:   fmt.Sprintf("%d", s.curID),
 		Spec: spec,
 	}
@@ -44,29 +46,28 @@ func (s *FakeStackStore) AddStack(spec types.StackSpec) (string, error) {
 	return stack.ID, nil
 }
 
-func (s *FakeStackStore) getStack(id string) (*types.Stack, error) {
+func (s *FakeStackStore) getStack(id string) (types.Stack, error) {
 	stack, ok := s.stacks[id]
 	if !ok {
-		return nil, errNotFound
+		return types.Stack{}, errNotFound
 	}
 
 	return stack, nil
 }
 
 // UpdateStack updates the stack in the store
-func (s *FakeStackStore) UpdateStack(id string, spec *types.StackSpec) error {
+func (s *FakeStackStore) UpdateStack(id string, spec types.StackSpec) error {
 	s.Lock()
 	defer s.Unlock()
-	if spec == nil {
-		return fmt.Errorf("unable to update stack '%s' with nil spec", id)
-	}
 
 	existingStack, err := s.getStack(id)
 	if err != nil {
 		return fmt.Errorf("unable to retrieve existing stack with ID '%s': %s", id, err)
 	}
 
-	existingStack.Spec = *spec
+	existingStack.Spec = spec
+	s.stacks[id] = existingStack
+
 	return nil
 }
 
@@ -79,17 +80,17 @@ func (s *FakeStackStore) DeleteStack(id string) error {
 }
 
 // GetStack retrieves a single stack from the store
-func (s *FakeStackStore) GetStack(name string) (*types.Stack, error) {
+func (s *FakeStackStore) GetStack(name string) (types.Stack, error) {
 	s.RLock()
 	defer s.RUnlock()
 	return s.getStack(name)
 }
 
 // ListStacks returns all known stacks from the store
-func (s *FakeStackStore) ListStacks() ([]*types.Stack, error) {
+func (s *FakeStackStore) ListStacks() ([]types.Stack, error) {
 	s.RLock()
 	defer s.RUnlock()
-	stacks := []*types.Stack{}
+	stacks := []types.Stack{}
 	for _, stack := range s.stacks {
 		stacks = append(stacks, stack)
 	}
