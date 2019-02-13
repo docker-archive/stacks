@@ -1,12 +1,12 @@
 package interfaces
 
 import (
-	"errors"
 	"fmt"
 	"reflect"
 	"testing"
 
 	"github.com/docker/docker/api/types/swarm"
+	"github.com/docker/docker/errdefs"
 	composeTypes "github.com/docker/stacks/pkg/compose/types"
 	"github.com/docker/stacks/pkg/types"
 
@@ -104,12 +104,12 @@ func TestCRDFakeStackStore(t *testing.T) {
 
 	stack, err := store.GetStack("doesntexist")
 	require.Error(err)
-	require.True(IsErrNotFound(err))
+	require.True(errdefs.IsNotFound(err))
 	require.Empty(stack)
 
 	swarmStack, err := store.GetSwarmStack("doesntexist")
 	require.Error(err)
-	require.True(IsErrNotFound(err))
+	require.True(errdefs.IsNotFound(err))
 	require.Empty(swarmStack)
 
 	// Add three items
@@ -177,11 +177,11 @@ func TestCRDFakeStackStore(t *testing.T) {
 	// Ensure that the deleted stack is not present
 	stack, err = store.GetStack("2")
 	require.Error(err)
-	require.True(IsErrNotFound(err))
+	require.True(errdefs.IsNotFound(err))
 
 	swarmStack, err = store.GetSwarmStack("2")
 	require.Error(err)
-	require.True(IsErrNotFound(err))
+	require.True(errdefs.IsNotFound(err))
 
 	// Ensure the expected list of stacks is present
 	stacks, err = store.ListStacks()
@@ -213,9 +213,4 @@ func TestCRDFakeStackStore(t *testing.T) {
 	for _, name := range []string{"1", "3", "4"} {
 		require.Contains(found, name, fmt.Sprintf("name %s not found", name))
 	}
-}
-
-func TestIsErrNotFound(t *testing.T) {
-	require.True(t, IsErrNotFound(errNotFound))
-	require.False(t, IsErrNotFound(errors.New("other error")))
 }

@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/docker/docker/errdefs"
+
 	"github.com/docker/stacks/pkg/types"
 )
 
@@ -30,7 +32,7 @@ func NewFakeStackStore() StackStore {
 	}
 }
 
-var errNotFound = errors.New("stack not found")
+var errNotFound = errdefs.NotFound(errors.New("stack not found"))
 
 // IsErrNotFound return true if the error is a not-found error.
 func IsErrNotFound(err error) bool {
