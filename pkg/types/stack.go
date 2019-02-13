@@ -6,6 +6,7 @@ import (
 
 // Stack represents a runtime instantiation of a Docker Compose based application
 type Stack struct {
+	Metadata
 	Spec           StackSpec          `json:"spec"`
 	StackResources StackResources     `json:"stack_resources"`
 	Orchestrator   OrchestratorChoice `json:"orchestrator"`
@@ -17,8 +18,14 @@ type Stack struct {
 
 // StackCreate is input to the Create operation for a Stack
 type StackCreate struct {
+	Metadata
 	Spec         StackSpec          `json:"spec"`
 	Orchestrator OrchestratorChoice `json:"orchestrator"`
+}
+
+// Metadata contains metadata for a Stack.
+type Metadata struct {
+	Name string
 }
 
 // StackList is the output for Stack listing
