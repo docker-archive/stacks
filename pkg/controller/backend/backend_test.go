@@ -14,7 +14,7 @@ import (
 func TestStacksBackend(t *testing.T) {
 	require := require.New(t)
 
-	b := NewStacksBackend(interfaces.NewFakeStackStore())
+	b := NewDefaultStacksBackend(interfaces.NewFakeStackStore())
 
 	// Attempt to create a stack with an invalid orchestrator type.
 	_, err := b.CreateStack(types.StackCreate{

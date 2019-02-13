@@ -22,7 +22,7 @@ import (
 // expected at any time.
 type BackendAPIClientShim struct {
 	dclient client.CommonAPIClient
-	StackStore
+	StacksBackend
 
 	// The following constructs are used to generate events for stack
 	// operations locally, and multiplex them into the daemon's event stream.
@@ -32,11 +32,11 @@ type BackendAPIClientShim struct {
 }
 
 // NewBackendAPIClientShim creates a new BackendAPIClientShim.
-func NewBackendAPIClientShim(dclient client.CommonAPIClient) BackendClient {
+func NewBackendAPIClientShim(dclient client.CommonAPIClient, backend StacksBackend) BackendClient {
 	return &BackendAPIClientShim{
-		dclient:     dclient,
-		StackStore:  NewFakeStackStore(),
-		stackEvents: make(chan events.Message),
+		dclient:       dclient,
+		StacksBackend: backend,
+		stackEvents:   make(chan events.Message),
 	}
 }
 
@@ -189,27 +189,27 @@ func (c *BackendAPIClientShim) UnsubscribeFromEvents(eventChan chan interface{})
 	}
 }
 
-// AddStack creates a stack.
-func (c *BackendAPIClientShim) AddStack(spec types.StackSpec) (string, error) {
-	id, err := c.StackStore.AddStack(spec)
+// CreateStack creates a stack
+func (c *BackendAPIClientShim) CreateStack(create types.StackCreate) (types.StackCreateResponse, error) {
+	resp, err := c.StacksBackend.CreateStack(create)
 	if err != nil {
-		return "", fmt.Errorf("unable to create stack: %s", err)
+		return resp, fmt.Errorf("unable to create stack: %s", err)
 	}
 
 	go func() {
 		c.stackEvents <- events.Message{
 			Type:   "stack",
 			Action: "create",
-			ID:     id,
+			ID:     resp.ID,
 		}
 	}()
 
-	return id, err
+	return resp, err
 }
 
 // UpdateStack updates a stack.
 func (c *BackendAPIClientShim) UpdateStack(id string, spec types.StackSpec) error {
-	err := c.StackStore.UpdateStack(id, spec)
+	err := c.StacksBackend.UpdateStack(id, spec)
 	go func() {
 		c.stackEvents <- events.Message{
 			Type:   "stack",
@@ -223,7 +223,7 @@ func (c *BackendAPIClientShim) UpdateStack(id string, spec types.StackSpec) erro
 
 // DeleteStack deletes a stack.
 func (c *BackendAPIClientShim) DeleteStack(id string) error {
-	err := c.StackStore.DeleteStack(id)
+	err := c.StacksBackend.DeleteStack(id)
 	go func() {
 		c.stackEvents <- events.Message{
 			Type:   "stack",
