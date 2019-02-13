@@ -1,6 +1,7 @@
 
 ORG=dockereng
 CONTROLLER_IMAGE_NAME=stack-controller
+E2E_IMAGE_NAME=stack-e2e
 TAG=latest # TODO work out versioning scheme
 TEST_SCOPE?=./...
 BUILD_ARGS= \
@@ -18,6 +19,9 @@ lint:
 
 standalone:
 	docker build $(BUILD_ARGS) -t $(ORG)/$(CONTROLLER_IMAGE_NAME):$(TAG) --target standalone .
+
+e2e:
+	docker build $(BUILD_ARGS) -t $(ORG)/$(E2E_IMAGE_NAME):$(TAG) --target e2e .
 
 # For developers...
 
@@ -38,3 +42,5 @@ pkg/compose/schema/bindata.go: pkg/compose/schema/data/*.json
 	docker build $(BUILD_ARGS) -t $(ORG)/$(CONTROLLER_IMAGE_NAME):build --target builder .
 	docker create --name $(CONTROLLER_IMAGE_NAME)_schema $(ORG)/$(CONTROLLER_IMAGE_NAME):build && \
 	    docker cp $(CONTROLLER_IMAGE_NAME)_schema:/go/src/github.com/docker/stacks/$@ $@ && docker rm $(CONTROLLER_IMAGE_NAME)_schema
+
+.PHONY: e2e
