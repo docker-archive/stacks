@@ -1,7 +1,6 @@
 package standalone
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 
@@ -87,15 +86,12 @@ func registerRoutes(r router.Router) http.Handler {
 
 func makeHTTPHandler(handler httputils.APIFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		ctx := context.TODO()
-		r = r.WithContext(ctx)
-
 		vars := mux.Vars(r)
 		if vars == nil {
 			vars = make(map[string]string)
 		}
 
-		if err := handler(ctx, w, r, vars); err != nil {
+		if err := handler(r.Context(), w, r, vars); err != nil {
 			statusCode := httputils.GetHTTPErrorStatusCode(err)
 			if statusCode >= 500 {
 				logrus.Errorf("Handler for %s %s returned error: %v", r.Method, r.URL.Path, err)
