@@ -18,7 +18,6 @@ func TestLoadStacks(t *testing.T) {
 	stack, err := loader.ParseComposeInput(*input)
 	assert.NilError(t, err)
 
-	apiVersion := ""
 	namespace := NewNamespace("dummy")
 
 	// TODO - figure out how to map theses...
@@ -43,8 +42,7 @@ func TestLoadStacks(t *testing.T) {
 	volumes := []composetypes.ServiceVolumeConfig{}
 	networks := map[string]struct{}{}
 	for _, service := range stack.Spec.Services {
-		res, err := Service(apiVersion,
-			namespace,
+		res, err := Service(namespace,
 			service,
 			stack.Spec.Networks,
 			stack.Spec.Volumes,

@@ -6,7 +6,8 @@
       "pkg/compose/schema/bindata.go",
       ".*generated.*",
       "parameter .* always receives",
-      "fake_store.go:1::warning: file is not goimported"
+      "fake_store.go:1::warning: file is not goimported",
+	  "mock_backend.go:1::warning: file is not goimported"
   ],
   "EnableGC": true,
   "Linters": {

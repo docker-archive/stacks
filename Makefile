@@ -34,7 +34,7 @@ cover: test
 
 build-mocks:
 	@echo "Generating mocks"
-	mockgen -package=mocks -destination pkg/mocks/mock_backend.go github.com/docker/stacks/pkg/interfaces BackendClient
+	mockgen -package=mocks github.com/docker/stacks/pkg/interfaces BackendClient | sed s,github.com/docker/stacks/vendor/,,g > pkg/mocks/mock_backend.go
 
 generate: pkg/compose/schema/bindata.go
 

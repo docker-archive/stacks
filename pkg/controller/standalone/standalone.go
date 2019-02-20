@@ -6,6 +6,7 @@ import (
 
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/server/router"
+	"github.com/docker/docker/client"
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
 
@@ -32,13 +33,15 @@ func Server(opts ServerOptions) error {
 	}
 
 	// Create an unauthenticated docker client
-	/*
-		// TODO: used by reconciler
-		dclient, err := client.NewClient(fmt.Sprintf("unix://%s", opts.DockerSocketPath), "", nil, nil)
-		if err != nil {
-			return fmt.Errorf("unable to create docker client for unix socket at %s: %s", opts.DockerSocketPath, err)
-		}
-	*/
+	dclient, err := client.NewClient(fmt.Sprintf("unix://%s", opts.DockerSocketPath), "", nil, nil)
+	if err != nil {
+		return fmt.Errorf("unable to create docker client for unix socket at %s: %s", opts.DockerSocketPath, err)
+	}
+
+	// Create a shim for the SwarmResourceBackend interface using the docker client.
+	// This shim is used to access swarm resources by the Stacks API handlers
+	// for validation and conversion purposes.
+	swarmResourceBackend := interfaces.NewSwarmAPIClientShim(dclient)
 
 	// Create the underlying storage for stacks and swarm-stacks as an
 	// in-memory store.
@@ -46,10 +49,9 @@ func Server(opts ServerOptions) error {
 
 	// Create a Stacks API Backend, which includes the API handling logic and
 	// type conversions.
-	stacksBackend := backend.NewDefaultStacksBackend(stackStore)
+	stacksBackend := backend.NewDefaultStacksBackend(stackStore, swarmResourceBackend)
 
-	// Create a shim for the BackendClient interface using the docker client.
-	// TODO: backendClient is only used by the reconciler
+	// TODO: create a BackendClient shim for the reconciler
 	// backendClient := interfaces.NewBackendAPIClientShim(dclient, stacksBackend)
 
 	// Create a Stacks API Router, which includes basic HTTP handlers for the

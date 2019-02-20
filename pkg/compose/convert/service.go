@@ -9,12 +9,13 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/swarm"
-	"github.com/docker/docker/api/types/versions"
-	"github.com/docker/docker/client"
+	"github.com/pkg/errors"
+
 	"github.com/docker/stacks/pkg/compose/parser"
 	composetypes "github.com/docker/stacks/pkg/compose/types"
+	"github.com/docker/stacks/pkg/interfaces"
 	"github.com/docker/stacks/pkg/opts"
-	"github.com/pkg/errors"
+	"github.com/docker/stacks/pkg/types"
 )
 
 const (
@@ -23,33 +24,37 @@ const (
 	LabelImage = "com.docker.stack.image"
 )
 
-// Services from compose-file types to engine API types
+// Services converts all services defined in a StackSpec into a list of
+// Swarm services.
 func Services(
 	namespace Namespace,
-	config *composetypes.Config,
-	client client.CommonAPIClient,
-) (map[string]swarm.ServiceSpec, error) {
-	result := make(map[string]swarm.ServiceSpec)
+	stackSpec types.StackSpec,
+	backend interfaces.SwarmResourceBackend,
+) ([]swarm.ServiceSpec, error) {
+	result := []swarm.ServiceSpec{}
 
-	services := config.Services
-	volumes := config.Volumes
-	networks := config.Networks
+	services := stackSpec.Services
+	volumes := stackSpec.Volumes
+	networks := stackSpec.Networks
 
 	for _, service := range services {
-		secrets, err := convertServiceSecrets(client, namespace, service.Secrets, config.Secrets)
-		if err != nil {
-			return nil, errors.Wrapf(err, "service %s", service.Name)
-		}
-		configs, err := convertServiceConfigObjs(client, namespace, service.Configs, config.Configs)
+		secrets, err := convertServiceSecrets(backend, namespace, service.Secrets, stackSpec.Secrets)
 		if err != nil {
 			return nil, errors.Wrapf(err, "service %s", service.Name)
 		}
 
-		serviceSpec, err := Service(client.ClientVersion(), namespace, service, networks, volumes, secrets, configs)
+		configs, err := convertServiceConfigObjs(backend, namespace, service.Configs, stackSpec.Configs)
 		if err != nil {
 			return nil, errors.Wrapf(err, "service %s", service.Name)
 		}
-		result[service.Name] = serviceSpec
+
+		serviceSpec, err := Service(namespace, service, networks, volumes, secrets, configs)
+		if err != nil {
+			return nil, errors.Wrapf(err, "service %s", service.Name)
+		}
+
+		serviceSpec.Annotations.Name = service.Name
+		result = append(result, serviceSpec)
 	}
 
 	return result, nil
@@ -57,7 +62,6 @@ func Services(
 
 // Service converts a ServiceConfig into a swarm ServiceSpec
 func Service(
-	apiVersion string,
 	namespace Namespace,
 	service composetypes.ServiceConfig,
 	networkConfigs map[string]composetypes.NetworkConfig,
@@ -168,19 +172,8 @@ func Service(
 
 	// add an image label to serviceSpec
 	serviceSpec.Labels[LabelImage] = service.Image
+	serviceSpec.TaskTemplate.Networks = networks
 
-	// ServiceSpec.Networks is deprecated and should not have been used by
-	// this package. It is possible to update TaskTemplate.Networks, but it
-	// is not possible to update ServiceSpec.Networks. Unfortunately, we
-	// can't unconditionally start using TaskTemplate.Networks, because that
-	// will break with older daemons that don't support migrating from
-	// ServiceSpec.Networks to TaskTemplate.Networks. So which field to use
-	// is conditional on daemon version.
-	if versions.LessThan(apiVersion, "1.29") {
-		serviceSpec.Networks = networks
-	} else {
-		serviceSpec.TaskTemplate.Networks = networks
-	}
 	return serviceSpec, nil
 }
 
@@ -246,9 +239,8 @@ func convertServiceNetworks(
 	return nets, nil
 }
 
-// TODO: fix secrets API so that SecretAPIClient is not required here
 func convertServiceSecrets(
-	client client.SecretAPIClient,
+	backend interfaces.SwarmResourceBackend,
 	namespace Namespace,
 	secrets []composetypes.ServiceSecretConfig,
 	secretSpecs map[string]composetypes.SecretConfig,
@@ -275,7 +267,7 @@ func convertServiceSecrets(
 		})
 	}
 
-	secrs, err := parser.ParseSecrets(client, refs)
+	secrs, err := parser.ParseSecrets(backend, refs)
 	if err != nil {
 		return nil, err
 	}
@@ -284,9 +276,8 @@ func convertServiceSecrets(
 	return secrs, err
 }
 
-// TODO: fix configs API so that ConfigsAPIClient is not required here
 func convertServiceConfigObjs(
-	client client.ConfigAPIClient,
+	backend interfaces.SwarmResourceBackend,
 	namespace Namespace,
 	configs []composetypes.ServiceConfigObjConfig,
 	configSpecs map[string]composetypes.ConfigObjConfig,
@@ -313,7 +304,7 @@ func convertServiceConfigObjs(
 		})
 	}
 
-	confs, err := parser.ParseConfigs(client, refs)
+	confs, err := parser.ParseConfigs(backend, refs)
 	if err != nil {
 		return nil, err
 	}

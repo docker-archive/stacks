@@ -16,7 +16,6 @@ RUN     go get -d github.com/mjibson/esc && \
         go build -v -o /usr/bin/esc . && \
         rm -rf /go/src/* /go/pkg/*
 
-
 COPY . /go/src/github.com/docker/stacks
 WORKDIR /go/src/github.com/docker/stacks
 
@@ -28,13 +27,6 @@ RUN go build -i ./e2e/... && \
     go build -o bin/standalone ./cmd/standalone
 
 FROM builder as unit-test
-
-# The gomock packages need to stay on the GOPATH
-RUN go get github.com/golang/mock/gomock  && \
-    go install github.com/golang/mock/mockgen
-
-# Generate mocks for the current version of the builder
-RUN make build-mocks
 
 # TODO - temporary unit test wiring...
 RUN go test -covermode=count -coverprofile=/cover.out -v $(go list ./pkg/...)

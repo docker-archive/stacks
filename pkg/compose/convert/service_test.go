@@ -1,21 +1,21 @@
 package convert
 
 import (
-	"context"
 	"os"
 	"sort"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/swarm"
-	"github.com/docker/docker/client"
 	composetypes "github.com/docker/stacks/pkg/compose/types"
+	"github.com/golang/mock/gomock"
 	"github.com/pkg/errors"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"
+
+	"github.com/docker/stacks/pkg/mocks"
 )
 
 func TestConvertRestartPolicyFromNone(t *testing.T) {
@@ -411,12 +411,13 @@ func TestServiceConvertsIsolation(t *testing.T) {
 	src := composetypes.ServiceConfig{
 		Isolation: "hyperv",
 	}
-	result, err := Service("1.35", Namespace{name: "foo"}, src, nil, nil, nil, nil)
+	result, err := Service(Namespace{name: "foo"}, src, nil, nil, nil, nil)
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(container.IsolationHyperV, result.TaskTemplate.ContainerSpec.Isolation))
 }
 
 func TestConvertServiceSecrets(t *testing.T) {
+
 	namespace := Namespace{name: "foo"}
 	secrets := []composetypes.ServiceSecretConfig{
 		{Source: "foo_secret"},
@@ -430,17 +431,15 @@ func TestConvertServiceSecrets(t *testing.T) {
 			Name: "bar_secret",
 		},
 	}
-	client := &fakeClient{
-		secretListFunc: func(opts types.SecretListOptions) ([]swarm.Secret, error) {
-			assert.Check(t, is.Contains(opts.Filters.Get("name"), "foo_secret"))
-			assert.Check(t, is.Contains(opts.Filters.Get("name"), "bar_secret"))
-			return []swarm.Secret{
-				{Spec: swarm.SecretSpec{Annotations: swarm.Annotations{Name: "foo_secret"}}},
-				{Spec: swarm.SecretSpec{Annotations: swarm.Annotations{Name: "bar_secret"}}},
-			}, nil
-		},
-	}
-	refs, err := convertServiceSecrets(client, namespace, secrets, secretSpecs)
+
+	ctrl := gomock.NewController(t)
+	backend := mocks.NewMockBackendClient(ctrl)
+	backend.EXPECT().GetSecrets(gomock.Any()).Return([]swarm.Secret{
+		{Spec: swarm.SecretSpec{Annotations: swarm.Annotations{Name: "foo_secret"}}},
+		{Spec: swarm.SecretSpec{Annotations: swarm.Annotations{Name: "bar_secret"}}},
+	}, nil)
+
+	refs, err := convertServiceSecrets(backend, namespace, secrets, secretSpecs)
 	assert.NilError(t, err)
 	expected := []*swarm.SecretReference{
 		{
@@ -479,17 +478,15 @@ func TestConvertServiceConfigs(t *testing.T) {
 			Name: "bar_config",
 		},
 	}
-	client := &fakeClient{
-		configListFunc: func(opts types.ConfigListOptions) ([]swarm.Config, error) {
-			assert.Check(t, is.Contains(opts.Filters.Get("name"), "foo_config"))
-			assert.Check(t, is.Contains(opts.Filters.Get("name"), "bar_config"))
-			return []swarm.Config{
-				{Spec: swarm.ConfigSpec{Annotations: swarm.Annotations{Name: "foo_config"}}},
-				{Spec: swarm.ConfigSpec{Annotations: swarm.Annotations{Name: "bar_config"}}},
-			}, nil
-		},
-	}
-	refs, err := convertServiceConfigObjs(client, namespace, configs, configSpecs)
+
+	ctrl := gomock.NewController(t)
+	backend := mocks.NewMockBackendClient(ctrl)
+	backend.EXPECT().GetConfigs(gomock.Any()).Return([]swarm.Config{
+		{Spec: swarm.ConfigSpec{Annotations: swarm.Annotations{Name: "foo_config"}}},
+		{Spec: swarm.ConfigSpec{Annotations: swarm.Annotations{Name: "bar_config"}}},
+	}, nil)
+
+	refs, err := convertServiceConfigObjs(backend, namespace, configs, configSpecs)
 	assert.NilError(t, err)
 	expected := []*swarm.ConfigReference{
 		{
@@ -512,26 +509,6 @@ func TestConvertServiceConfigs(t *testing.T) {
 		},
 	}
 	assert.DeepEqual(t, expected, refs)
-}
-
-type fakeClient struct {
-	client.Client
-	secretListFunc func(types.SecretListOptions) ([]swarm.Secret, error)
-	configListFunc func(types.ConfigListOptions) ([]swarm.Config, error)
-}
-
-func (c *fakeClient) SecretList(ctx context.Context, options types.SecretListOptions) ([]swarm.Secret, error) {
-	if c.secretListFunc != nil {
-		return c.secretListFunc(options)
-	}
-	return []swarm.Secret{}, nil
-}
-
-func (c *fakeClient) ConfigList(ctx context.Context, options types.ConfigListOptions) ([]swarm.Config, error) {
-	if c.configListFunc != nil {
-		return c.configListFunc(options)
-	}
-	return []swarm.Config{}, nil
 }
 
 func TestConvertUpdateConfigParallelism(t *testing.T) {

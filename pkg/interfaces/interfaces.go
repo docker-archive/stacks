@@ -27,18 +27,14 @@ type StacksBackend interface {
 	ListSwarmStacks() ([]SwarmStack, error)
 }
 
-// BackendClient is the interface used by the Stacks Reconciler to consume
-// Docker Events and act upon swarmkit resources. In the engine runtime, it is
-// implemented directly by the docker/daemon.Daemon object. In the standalone
-// test runtime, the BackendAPIClientShim allows a normal engine API to be used
-// in its place.
-type BackendClient interface {
-	StacksBackend
-
+// SwarmResourceBackend is a subset of the swarm.Backend interface, combined
+// with the network.ClusterBackend interface. It includes all methods required
+// to validate, provision and update manipulate Swarm stacks and their
+// referenced resources.
+type SwarmResourceBackend interface {
 	network.ClusterBackend
 
-	// The following operations are a subset of the
-	// swarm.Backend interface.
+	// The following methods are part of the swarm.Backend interface
 	GetServices(dockerTypes.ServiceListOptions) ([]swarm.Service, error)
 	GetService(idOrName string, insertDefaults bool) (swarm.Service, error)
 	CreateService(swarm.ServiceSpec, string, bool) (*dockerTypes.ServiceCreateResponse, error)
@@ -56,6 +52,17 @@ type BackendClient interface {
 	RemoveConfig(id string) error
 	GetConfig(id string) (swarm.Config, error)
 	UpdateConfig(idOrName string, version uint64, spec swarm.ConfigSpec) error
+}
+
+// BackendClient is the full interface used by the Stacks Reconciler to consume
+// Docker Events and act upon swarmkit resources. In the engine runtime, it is
+// implemented directly by the docker/daemon.Daemon object. In the standalone
+// test runtime, the BackendAPIClientShim allows a normal engine API to be used
+// in its place.
+type BackendClient interface {
+	StacksBackend
+
+	SwarmResourceBackend
 
 	// SubscribeToEvents and UnsubscribeFromEvents are part of the
 	// system.Backend interface
