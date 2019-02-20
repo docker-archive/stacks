@@ -3,6 +3,7 @@ package backend
 import (
 	"fmt"
 
+	"github.com/docker/stacks/pkg/compose/loader"
 	"github.com/docker/stacks/pkg/interfaces"
 	"github.com/docker/stacks/pkg/types"
 )
@@ -107,4 +108,9 @@ func (b *DefaultStacksBackend) DeleteStack(id string) error {
 func validateSpec(_ types.StackSpec) error {
 	// TODO(alexmavr): implement
 	return nil
+}
+
+// ParseComposeInput parses a compose file and returns the StackCreate object with the spec and any properties
+func (b *DefaultStacksBackend) ParseComposeInput(input types.ComposeInput) (*types.StackCreate, error) {
+	return loader.ParseComposeInput(input)
 }

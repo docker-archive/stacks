@@ -80,3 +80,21 @@ func (sr *stacksRouter) updateStack(_ context.Context, _ http.ResponseWriter, r 
 
 	return nil
 }
+
+func (sr *stacksRouter) parseComposeInput(_ context.Context, w http.ResponseWriter, r *http.Request, _ map[string]string) error {
+	var input types.ComposeInput
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		if err == io.EOF {
+			return errdefs.InvalidParameter(errors.New("got EOF while reading request body"))
+		}
+		return errdefs.InvalidParameter(err)
+	}
+
+	resp, err := sr.backend.ParseComposeInput(input)
+	if err != nil {
+		logrus.Errorf("Error creating stack: %s", err)
+		return err
+	}
+
+	return httputils.WriteJSON(w, http.StatusOK, resp)
+}

@@ -28,5 +28,6 @@ func (sr *stacksRouter) initRoutes() {
 		router.NewGetRoute("/stacks/{id}", sr.getStack),
 		router.NewDeleteRoute("/stacks/{id}", sr.removeStack),
 		router.NewPostRoute("/stacks/{id}", sr.updateStack),
+		router.NewPostRoute("/parsecompose", sr.parseComposeInput),
 	}
 }

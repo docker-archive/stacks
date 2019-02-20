@@ -9,4 +9,5 @@ type Backend interface {
 	ListStacks() ([]types.Stack, error)
 	UpdateStack(id string, spec types.StackSpec) error
 	DeleteStack(id string) error
+	ParseComposeInput(types.ComposeInput) (*types.StackCreate, error)
 }

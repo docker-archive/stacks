@@ -1,6 +1,7 @@
 package types
 
 import (
+	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/stacks/pkg/compose/types"
 )
 
@@ -14,6 +15,26 @@ type Stack struct {
 
 	// TODO - temporary (not in swagger)
 	ID string
+}
+
+// StackCreateOptions is input to the Create operation for a Stack
+type StackCreateOptions struct {
+	EncodedRegistryAuth string
+}
+
+// StackUpdateOptions is input to the Update operation for a Stack
+type StackUpdateOptions struct {
+	EncodedRegistryAuth string
+}
+
+// StackListOptions is input to the List operation for a Stack
+type StackListOptions struct {
+	Filters filters.Args
+}
+
+// Version represents the internal object version.
+type Version struct {
+	Index uint64 `json:",omitempty"`
 }
 
 // StackCreate is input to the Create operation for a Stack

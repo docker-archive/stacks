@@ -33,6 +33,6 @@ docker run -v /var/run/docker.sock:/var/run/docker.sock -p 8080:2375 dockereng/s
 After building the e2e test image with `make e2e` and starting the standalone runtime (see above) you
 can run the e2e tests with something along the following lines:
 ```
-docker run --net host -e DOCKER_HOST=tcp://localhost:2375 dockereng/stack-e2e:latest
+docker run --net host -e DOCKER_HOST=tcp://localhost:8080 dockereng/stack-e2e:latest
 ```
 Additional flags can be passed as command arguments - try `-help` for usage.
