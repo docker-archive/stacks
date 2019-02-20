@@ -1,9 +1,12 @@
 package reconciler
 
 import (
+	"fmt"
+
 	"github.com/docker/stacks/pkg/interfaces"
 
 	dockerTypes "github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/errdefs"
 )
@@ -25,6 +28,7 @@ type Client interface {
 	GetSwarmStack(string) (interfaces.SwarmStack, error)
 
 	// service methods
+	GetServices(dockerTypes.ServiceListOptions) ([]swarm.Service, error)
 	GetService(string, bool) (swarm.Service, error)
 	CreateService(swarm.ServiceSpec, string, bool) (*dockerTypes.ServiceCreateResponse, error)
 
@@ -145,6 +149,35 @@ func (r *reconciler) reconcileStack(id string) error {
 // Delete takes the kind and ID of an object that has been deleted and
 // reconciles it
 func (r *reconciler) Delete(kind, id string) error {
-	// TODO(dperny): implement
+	switch kind {
+	case StackEventType:
+		return r.deleteStack(id)
+	default:
+		// TODO(dperny): implement for other kinds
+		return nil
+	}
+}
+
+func (r *reconciler) deleteStack(id string) error {
+	// it doesn't matter if the stack is actually deleted or not, so we don't
+	// have to get it from the backend. If it isn't deleted, the services will
+	// not be deleted when we reconcile them in a bit.
+	//
+	// We do have to get all services labeled for this stack
+	services, err := r.cli.GetServices(dockerTypes.ServiceListOptions{Filters: stackLabelFilter(id)})
+	if err != nil {
+		return err
+	}
+	for _, service := range services {
+		r.notifier.Notify("service", service.ID)
+	}
 	return nil
+}
+
+// stackLabelFilter constructs a filter.Args which filters for stacks based on
+// the stack label being equal to the stack ID.
+func stackLabelFilter(stackID string) filters.Args {
+	return filters.NewArgs(
+		filters.Arg("label", fmt.Sprintf("%s=%s", StackLabel, stackID)),
+	)
 }

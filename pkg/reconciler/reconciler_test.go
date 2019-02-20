@@ -139,7 +139,7 @@ var _ = Describe("Reconciler", func() {
 
 	// TODO(dperny): specs marked "PIt" are "Pending" and do not execute.
 
-	Describe("Reconciling stacks", func() {
+	Describe("Reconciling a stack", func() {
 		var (
 			err error
 		)
@@ -250,21 +250,55 @@ var _ = Describe("Reconciler", func() {
 			})
 		})
 
-		// a stack must be reconciled before we can delete it
-		PDescribe("deleting a stack", func() {
-			BeforeEach(func() {
-			})
-			JustBeforeEach(func() {
-				r.Delete(StackEventType, stackID)
-			})
-			It("should notify the that all of the resources belonging to that stack should reconciled", func() {
-				Expect(notifier.objects).To(ConsistOf(
-					obj{"service", "service1"},
-					obj{"service", "service2"},
-				))
-			})
-		})
+	})
 
+	Describe("deleting a stack", func() {
+		var (
+			err error
+		)
+		BeforeEach(func() {
+			specs := []swarm.ServiceSpec{
+				{
+					Annotations: swarm.Annotations{
+						Name:   "service1",
+						Labels: map[string]string{StackLabel: stackID},
+					},
+				},
+				{
+					Annotations: swarm.Annotations{
+						Name:   "service2",
+						Labels: map[string]string{StackLabel: "notthisone"},
+					},
+				}, {
+					Annotations: swarm.Annotations{
+						Name:   "service3",
+						Labels: map[string]string{StackLabel: stackID},
+					},
+				}, {
+					Annotations: swarm.Annotations{
+						Name: "service4",
+					},
+				},
+			}
+			// Create some services belonging to a stack
+
+			for _, spec := range specs {
+				_, err := f.CreateService(spec, "", false)
+				Expect(err).ToNot(HaveOccurred())
+			}
+		})
+		JustBeforeEach(func() {
+			err = r.Delete(StackEventType, stackID)
+		})
+		It("should return no error", func() {
+			Expect(err).ToNot(HaveOccurred())
+		})
+		It("should notify the that all of the resources belonging to that stack should reconciled", func() {
+			Expect(notifier.objects).To(ConsistOf(
+				obj{"service", f.servicesByName["service1"]},
+				obj{"service", f.servicesByName["service3"]},
+			))
+		})
 	})
 
 	Describe("Reconciling resources", func() {

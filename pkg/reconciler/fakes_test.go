@@ -5,9 +5,11 @@ package reconciler
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 
 	dockerTypes "github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/errdefs"
 
@@ -71,6 +73,43 @@ func (f *fakeReconcilerClient) GetSwarmStack(idOrName string) (interfaces.SwarmS
 	return *stack, nil
 }
 
+// GetServices implements the GetServices method of the BackendClient,
+// returning a list of services. It only supports 1 kind of filter, which is
+// a filter for stack ID.
+func (f *fakeReconcilerClient) GetServices(opts dockerTypes.ServiceListOptions) ([]swarm.Service, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	var (
+		stackID   string
+		hasFilter bool
+	)
+	// before doing anything, check if there is a filter and it's in the
+	// correct form. This lets us error out early if it's not
+	if opts.Filters.Len() != 0 {
+		var ok bool
+		stackID, ok = getStackIDFromLabelFilter(opts.Filters)
+		if !ok {
+			return nil, invalidArg
+		}
+		hasFilter = true
+	}
+
+	services := []swarm.Service{}
+
+	for _, service := range f.services {
+		// if we're filtering on stack ID, and this service doesn't match, then
+		// we should skip this service
+		if hasFilter && service.Spec.Annotations.Labels[StackLabel] != stackID {
+			continue
+		}
+		// otherwise, we should append this service to the set
+		services = append(services, *service)
+	}
+
+	return services, nil
+}
+
 // GetService gets a swarm service
 func (f *fakeReconcilerClient) GetService(idOrName string, _ bool) (swarm.Service, error) {
 	f.mu.Lock()
@@ -130,6 +169,40 @@ func resolveID(namesToIds map[string]string, key string) string {
 		return key
 	}
 	return id
+}
+
+// getStackIDFromLabelFilter takes a filters.Args and determines if it includes
+// a filter for StackLabel. If so, it returns the Stack ID specified by the
+// label and true. If not, it returns emptystring and false.
+func getStackIDFromLabelFilter(args filters.Args) (string, bool) {
+	labelfilters := args.Get("label")
+	// there should only be 1 string here, anything else is not supported
+	if len(labelfilters) != 1 {
+		return "", false
+	}
+
+	// we now have a filter that is in one of two forms:
+	// SomeKey or SomeKey=SomeValue
+	// We split on the =. If we get 1 string back, it means there is no =, and
+	// therefore no value specified for the label.
+	kvPair := strings.SplitN(labelfilters[0], "=", 2)
+	if len(kvPair) != 2 {
+		return "", false
+	}
+
+	// make sure the key is StackLabel
+	if kvPair[0] != StackLabel {
+		return "", false
+	}
+
+	// don't return true if the value is emptystring. there's no reason
+	// emptystring wouldn't be a valid, except that i'm pretty sure allowing it
+	// to be a valid ID in this context would invite bugs.
+	if kvPair[1] == "" {
+		return "", false
+	}
+
+	return kvPair[1], true
 }
 
 func (f *fakeReconcilerClient) newID(objType string) string {
