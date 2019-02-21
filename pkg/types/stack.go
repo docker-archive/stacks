@@ -56,7 +56,7 @@ type StackList struct {
 
 // StackSpec defines the desired state of Stack
 type StackSpec struct {
-	Services       []types.ServiceConfig            `json:"services,omitempty"`
+	Services       types.Services                   `json:"services,omitempty"`
 	Secrets        map[string]types.SecretConfig    `json:"secrets,omitempty"`
 	Configs        map[string]types.ConfigObjConfig `json:"configs,omitempty"`
 	Networks       map[string]types.NetworkConfig   `json:"networks,omitempty"`

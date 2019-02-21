@@ -696,13 +696,13 @@ func transformServicePort(data interface{}) (interface{}, error) {
 		for _, entry := range entries {
 			switch value := entry.(type) {
 			case int:
-				v, err := toServicePortConfigs(fmt.Sprint(value))
+				v, err := ToServicePortConfigs(fmt.Sprint(value))
 				if err != nil {
 					return data, err
 				}
 				ports = append(ports, v...)
 			case string:
-				v, err := toServicePortConfigs(value)
+				v, err := ToServicePortConfigs(value)
 				if err != nil {
 					return data, err
 				}
@@ -869,13 +869,16 @@ func transformStringToDuration(value interface{}) (interface{}, error) {
 	}
 }
 
-func toServicePortConfigs(value string) ([]interface{}, error) {
+// ToServicePortConfigs converts a port definition to []ServicePortConfig
+func ToServicePortConfigs(value string) ([]interface{}, error) {
 	var portConfigs []interface{}
 
 	// Check for variable before interpreting
 	matches := template.DefaultPattern.FindStringSubmatch(value)
 	if matches != nil {
-		portConfigs = append(portConfigs, map[string]struct{}{value: {}})
+		portConfigs = append(portConfigs, types.ServicePortConfig{
+			Variable: value,
+		})
 		return portConfigs, nil
 	}
 

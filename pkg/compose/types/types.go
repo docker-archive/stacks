@@ -3,6 +3,7 @@ package types
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -151,6 +152,21 @@ func (s Services) MarshalJSON() ([]byte, error) {
 		return nil, err
 	}
 	return json.MarshalIndent(data, "", "  ")
+}
+
+// UnmarshalJSON makes Services implement json.Unmarshaler
+func (s *Services) UnmarshalJSON(data []byte) error {
+	services := map[string]ServiceConfig{}
+
+	err := json.Unmarshal(data, &services)
+	if err != nil {
+		return err
+	}
+	for name, service := range services {
+		service.Name = name
+		*s = append(*s, service)
+	}
+	return nil
 }
 
 // ServiceConfig is the configuration of one service
@@ -366,6 +382,11 @@ type ServicePortConfig struct {
 	Target    uint32 `yaml:",omitempty" json:"target,omitempty"`
 	Published uint32 `yaml:",omitempty" json:"published,omitempty"`
 	Protocol  string `yaml:",omitempty" json:"protocol,omitempty"`
+
+	// Variable holds a port variable definition when the actual
+	// port settings aren't known until property substitution time
+	// If non-empty, other fields are omitted
+	Variable string `yaml:"-" json:"variable,omitempty"`
 }
 
 // ServiceVolumeConfig are references to a volume used by a service
@@ -490,6 +511,28 @@ func (e External) MarshalJSON() ([]byte, error) {
 		return []byte(fmt.Sprintf("%v", e.External)), nil
 	}
 	return []byte(fmt.Sprintf(`{"name": %q}`, e.Name)), nil
+}
+
+// UnmarshalJSON makes External implement json.Unmarshaller
+func (e *External) UnmarshalJSON(data []byte) error {
+	if strings.ToLower(string(data)) == "false" {
+		e.External = false
+		return nil
+	} else if strings.ToLower(string(data)) == "true" {
+		e.External = true
+		return nil
+	}
+	nested := map[string]string{}
+	err := json.Unmarshal(data, &nested)
+	if err != nil {
+		return err
+	}
+	name, ok := nested["name"]
+	if !ok {
+		return fmt.Errorf("malformed external json type: %s", string(data))
+	}
+	e.Name = name
+	return nil
 }
 
 // CredentialSpecConfig for credential spec on Windows
