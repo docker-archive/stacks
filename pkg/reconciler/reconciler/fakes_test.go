@@ -100,7 +100,7 @@ func (f *fakeReconcilerClient) GetServices(opts dockerTypes.ServiceListOptions) 
 	for _, service := range f.services {
 		// if we're filtering on stack ID, and this service doesn't match, then
 		// we should skip this service
-		if hasFilter && service.Spec.Annotations.Labels[StackLabel] != stackID {
+		if hasFilter && service.Spec.Annotations.Labels[interfaces.StackLabel] != stackID {
 			continue
 		}
 		// otherwise, we should append this service to the set
@@ -161,6 +161,49 @@ func (f *fakeReconcilerClient) CreateService(spec swarm.ServiceSpec, _ string, _
 	}, nil
 }
 
+// UpdateService updates the service to the provided spec.
+func (f *fakeReconcilerClient) UpdateService(
+	idOrName string,
+	version uint64,
+	spec swarm.ServiceSpec,
+	_ dockerTypes.ServiceUpdateOptions,
+	_ bool,
+) (*dockerTypes.ServiceUpdateResponse, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	id := resolveID(f.servicesByName, idOrName)
+	service, ok := f.services[id]
+	if !ok {
+		return nil, notFound
+	}
+
+	if version != service.Meta.Version.Index {
+		return nil, invalidArg
+	}
+
+	service.Spec = spec
+	service.Meta.Version.Index = service.Meta.Version.Index + 1
+	return &dockerTypes.ServiceUpdateResponse{}, nil
+}
+
+func (f *fakeReconcilerClient) RemoveService(idOrName string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	id := resolveID(f.servicesByName, idOrName)
+
+	service, ok := f.services[id]
+	if !ok {
+		return notFound
+	}
+
+	delete(f.services, service.ID)
+	delete(f.servicesByName, service.Spec.Annotations.Name)
+
+	return nil
+}
+
 // resolveID takes a value that might be an ID or and figures out which it is,
 // returning the ID
 func resolveID(namesToIds map[string]string, key string) string {
@@ -191,7 +234,7 @@ func getStackIDFromLabelFilter(args filters.Args) (string, bool) {
 	}
 
 	// make sure the key is StackLabel
-	if kvPair[0] != StackLabel {
+	if kvPair[0] != interfaces.StackLabel {
 		return "", false
 	}
 

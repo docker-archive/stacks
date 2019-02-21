@@ -5,6 +5,13 @@ import (
 	"github.com/docker/docker/api/types/swarm"
 )
 
+const (
+	// StackEventType is the value of Type in an events.Message for stacks
+	StackEventType = "stack"
+	// StackLabel is a label on objects indicating the stack that it belongs to
+	StackLabel = "com.docker.stacks.stack_id"
+)
+
 // SwarmStack represents a Stack with all of its elements converted to Engine
 // API types.
 // NOTE: SwarmStack is only used internally for reconciliation of Swarm

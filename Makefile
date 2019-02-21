@@ -35,6 +35,7 @@ cover: test
 build-mocks:
 	@echo "Generating mocks"
 	mockgen -package=mocks github.com/docker/stacks/pkg/interfaces BackendClient | sed s,github.com/docker/stacks/vendor/,,g > pkg/mocks/mock_backend.go
+	mockgen -package=mocks github.com/docker/stacks/pkg/reconciler/reconciler Reconciler | sed s,github.com/docker/stacks/vendor/,,g > pkg/mocks/mock_reconciler.go
 
 generate: pkg/compose/schema/bindata.go
 

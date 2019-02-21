@@ -3,18 +3,19 @@
   "Deadline": "2m",
   "Sort": ["linter", "severity", "path", "line"],
   "Exclude": [
-      "pkg/compose/schema/bindata.go",
-      ".*generated.*",
-      "parameter .* always receives",
-      "fake_store.go:1::warning: file is not goimported",
-	  "mock_backend.go:1::warning: file is not goimported"
+    "pkg/compose/schema/bindata.go",
+    ".*generated.*",
+    "parameter .* always receives",
+    "fake_store.go:1::warning: file is not goimported",
+    "mock_backend.go:1::warning: file is not goimported",
+    "mock_reconciler.go:1::warning: file is not goimported"
   ],
   "EnableGC": true,
   "Linters": {
-      "nakedret": {
-        "Command": "nakedret",
-        "Pattern": "^(?P<path>.*?\\.go):(?P<line>\\d+)\\s*(?P<message>.*)$"
-      }
+    "nakedret": {
+      "Command": "nakedret",
+      "Pattern": "^(?P<path>.*?\\.go):(?P<line>\\d+)\\s*(?P<message>.*)$"
+    }
   },
   "WarnUnmatchedDirective": true,
 

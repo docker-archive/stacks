@@ -11,9 +11,8 @@ import (
 	// we'll need to return GomegaMatcher, which is in the types package
 	. "github.com/onsi/gomega/types"
 
-	// using errdefs makes handling errors across package boundaries actually
-	// sensible
 	dockertypes "github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/swarm"
 
 	"github.com/docker/stacks/pkg/interfaces"
@@ -150,7 +149,7 @@ var _ = Describe("Reconciler", func() {
 					Annotations: swarm.Annotations{
 						Name: "service1-name",
 						Labels: map[string]string{
-							StackLabel: stackFixture.ID,
+							interfaces.StackLabel: stackFixture.ID,
 						},
 					},
 				},
@@ -158,7 +157,7 @@ var _ = Describe("Reconciler", func() {
 					Annotations: swarm.Annotations{
 						Name: "service2-name",
 						Labels: map[string]string{
-							StackLabel: stackFixture.ID,
+							interfaces.StackLabel: stackFixture.ID,
 						},
 					},
 				},
@@ -171,7 +170,7 @@ var _ = Describe("Reconciler", func() {
 		JustBeforeEach(func() {
 			// this test handles all ReconcileStack cases, so its pretty
 			// obvious that ReconcileStack is gonna be called for each of them
-			err = r.Reconcile(StackEventType, stackID)
+			err = r.Reconcile(interfaces.StackEventType, stackID)
 		})
 
 		When("a new stack is created", func() {
@@ -193,7 +192,7 @@ var _ = Describe("Reconciler", func() {
 			})
 		})
 
-		When("a stack does not exit to be retrieved by the client", func() {
+		When("a stack does not exist to be retrieved by the client", func() {
 			BeforeEach(func() {
 				// Actually no instead remove the stack
 				delete(f.stacksByName, stackFixture.Spec.Annotations.Name)
@@ -261,18 +260,18 @@ var _ = Describe("Reconciler", func() {
 				{
 					Annotations: swarm.Annotations{
 						Name:   "service1",
-						Labels: map[string]string{StackLabel: stackID},
+						Labels: map[string]string{interfaces.StackLabel: stackID},
 					},
 				},
 				{
 					Annotations: swarm.Annotations{
 						Name:   "service2",
-						Labels: map[string]string{StackLabel: "notthisone"},
+						Labels: map[string]string{interfaces.StackLabel: "notthisone"},
 					},
 				}, {
 					Annotations: swarm.Annotations{
 						Name:   "service3",
-						Labels: map[string]string{StackLabel: stackID},
+						Labels: map[string]string{interfaces.StackLabel: stackID},
 					},
 				}, {
 					Annotations: swarm.Annotations{
@@ -288,7 +287,7 @@ var _ = Describe("Reconciler", func() {
 			}
 		})
 		JustBeforeEach(func() {
-			err = r.Delete(StackEventType, stackID)
+			err = r.Reconcile(interfaces.StackEventType, stackID)
 		})
 		It("should return no error", func() {
 			Expect(err).ToNot(HaveOccurred())
@@ -301,44 +300,108 @@ var _ = Describe("Reconciler", func() {
 		})
 	})
 
-	Describe("Reconciling resources", func() {
-		When("a resource is updated", func() {
+	Describe("Reconciling services", func() {
+		When("a service is updated", func() {
 			var (
-				// kind and ID of the resource we'll be updating
-				kind, id string
-				err      error
+				id  string
+				err error
 			)
 			JustBeforeEach(func() {
-				err = r.Reconcile(kind, id)
+				err = r.Reconcile(events.ServiceEventType, id)
 			})
 
-			When("the resource does not belong to a stack", func() {
+			When("the service does not belong to a stack", func() {
+				BeforeEach(func() {
+					// create a service with no StackLabel
+					resp, createErr := f.CreateService(swarm.ServiceSpec{
+						Annotations: swarm.Annotations{
+							Name: "foo",
+						},
+					}, "", false)
+					Expect(createErr).ToNot(HaveOccurred())
+					id = resp.ID
+				})
 				It("should return no error", func() {
 					Expect(err).ToNot(HaveOccurred())
 				})
 			})
-			PWhen("the resource belongs to a stack", func() {
+			When("the service belongs to a stack", func() {
+				var (
+					spec swarm.ServiceSpec
+				)
+				BeforeEach(func() {
+					spec = swarm.ServiceSpec{
+						Annotations: swarm.Annotations{
+							Name:   "foo",
+							Labels: map[string]string{interfaces.StackLabel: stackID},
+						},
+					}
+					resp, createErr := f.CreateService(spec, "", false)
+					Expect(createErr).ToNot(HaveOccurred())
+					id = resp.ID
+				})
+				When("the stack has been deleted", func() {
+					It("should delete the service", func() {
+						// There should be no services in the fake anymore.
+						Expect(f).To(ConsistOfServices([]swarm.ServiceSpec{}))
+					})
+				})
 				When("the resource does not match the stack definition", func() {
-					PIt("should update the resource's spec")
-					PIt("should return no error if successful")
-					PIt("should return an error if unsuccessful")
+					BeforeEach(func() {
+						differentSpec := spec
+						// we have to make a new map for labels, because
+						// otherwise we'd mutate the old map which is linked to
+						// the old spec
+						differentSpec.Annotations.Labels = map[string]string{
+							interfaces.StackLabel: stackID,
+							"klaatu":              "barada nikto",
+						}
+						stackFixture.Spec.Services = append(stackFixture.Spec.Services, differentSpec)
+						f.stacks[stackFixture.ID] = stackFixture
+						f.stacksByName[stackFixture.Spec.Annotations.Name] = stackFixture.ID
+					})
+					It("should update the resource's spec", func() {
+						Expect(f).To(ConsistOfServices(stackFixture.Spec.Services))
+						Expect(f.services[id].Meta.Version.Index).To(Equal(uint64(2)))
+					})
+					It("should return no error if successful", func() {
+						Expect(err).ToNot(HaveOccurred())
+					})
+				})
+				When("the service does not have a matching spec in the stack", func() {
+					BeforeEach(func() {
+						f.stacks[stackFixture.ID] = stackFixture
+						f.stacksByName[stackFixture.Spec.Annotations.Name] = stackFixture.ID
+					})
+					It("should delete the service", func() {
+						Expect(f).To(ConsistOfServices([]swarm.ServiceSpec{}))
+					})
+					It("should not return an error", func() {
+						Expect(err).ToNot(HaveOccurred())
+					})
 				})
 				When("the resource does match the stack's definition", func() {
+					BeforeEach(func() {
+						stackFixture.Spec.Services = append(stackFixture.Spec.Services, spec)
+						f.stacks[stackFixture.ID] = stackFixture
+						f.stacksByName[stackFixture.Spec.Annotations.Name] = stackFixture.ID
+					})
 					It("should return no error", func() {
 						Expect(err).To(BeNil())
 					})
 					It("should perform no updates", func() {
-						// covered by gomock
+						Expect(f).To(ConsistOfServices(stackFixture.Spec.Services))
+						// don't bother nil-checking in expectations, we'll
+						// just allow the panic if it happens
+						Expect(f.services[id].Meta.Version.Index).To(Equal(uint64(1)))
 					})
-				})
-				When("the stack the resource belongs to does not exist", func() {
-					PIt("should delete the resource", func() {})
 				})
 			})
 		})
 
-		When("a resource is deleted", func() {
-			PIt("should notify the ObjectChangeNotifier that the stack should be reconciled", func() {
+		PWhen("a service is deleted", func() {
+			// TODO(dperny): we can't handle this case yet.
+			It("should notify the ObjectChangeNotifier that the stack should be reconciled", func() {
 			})
 		})
 	})
