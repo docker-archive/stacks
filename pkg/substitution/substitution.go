@@ -22,13 +22,18 @@ func DoSubstitution(spec types.StackSpec) (types.StackSpec, error) {
 	// Start with a naive implementation based on round-tripping to json
 	var finalSpec types.StackSpec
 
-	// TODO There are likely to be additional corner cases where
+	// TODO There may be additional corner cases where
 	// the structure changes (not a simple string replacement)
 	// Those are handled by custom conversion routines here
 	// before performing the generic json round-trip conversion
-	err := doPortSubstitutions(&spec)
-	if err != nil {
-		return finalSpec, err
+	for _, sub := range []func(spec *types.StackSpec) error{
+		doPortSubstitutions,
+		doVolumeSubstitutions,
+	} {
+		err := sub(&spec)
+		if err != nil {
+			return finalSpec, err
+		}
 	}
 
 	specPreJSON, err := json.MarshalIndent(spec, "", "    ")
@@ -88,6 +93,32 @@ func doPortSubstitutions(spec *types.StackSpec) error {
 					spec.Services[si].Ports = append(spec.Services[si].Ports, realPort[i].(composetypes.ServicePortConfig))
 				}
 			}
+		}
+	}
+	return nil
+}
+
+func doVolumeSubstitutions(spec *types.StackSpec) error {
+	for si, service := range spec.Services {
+		for vi, volume := range service.Volumes {
+			// Check if the Target looks like a variable
+			matches := template.DefaultPattern.FindStringSubmatch(volume.Target)
+			if matches == nil {
+				continue
+			}
+
+			realVolumeString, err := doSubstitute(volume.Target, spec)
+			if err != nil {
+				return err
+			}
+
+			realVolume, err := loader.ParseVolume(realVolumeString)
+			if err != nil {
+				return err
+			}
+
+			// Swap out the original volume
+			spec.Services[si].Volumes[vi] = realVolume
 		}
 	}
 	return nil

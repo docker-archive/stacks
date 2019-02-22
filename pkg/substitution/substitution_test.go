@@ -46,3 +46,31 @@ func TestDoPortSubstitutions(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Check(t, is.DeepEqual(outspec.Services[0].Ports, expectedPorts))
 }
+
+func TestDoVolumeSubstitutions(t *testing.T) {
+	spec := types.StackSpec{
+		Services: composetypes.Services{
+			composetypes.ServiceConfig{
+				Volumes: []composetypes.ServiceVolumeConfig{
+					{
+						Target: "${VOL1}",
+					},
+				},
+			},
+		},
+		PropertyValues: []string{
+			"VOL1=/host/data/configs:/etc/configs/:ro",
+		},
+	}
+	expectedVolumes := []composetypes.ServiceVolumeConfig{
+		{
+			Type:     "bind",
+			Source:   "/host/data/configs",
+			Target:   "/etc/configs/",
+			ReadOnly: true,
+		},
+	}
+	outspec, err := DoSubstitution(spec)
+	assert.NilError(t, err)
+	assert.Check(t, is.DeepEqual(outspec.Services[0].Volumes, expectedVolumes))
+}
