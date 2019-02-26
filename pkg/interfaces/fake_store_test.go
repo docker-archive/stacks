@@ -76,7 +76,7 @@ func TestUpdateFakeStackStore(t *testing.T) {
 	require.Equal(swarmStack.ID, id)
 	require.True(reflect.DeepEqual(swarmStack.Spec, swarmStack1.Spec))
 
-	require.NoError(store.UpdateStack(id, stack2.Spec, swarmStack2.Spec))
+	require.NoError(store.UpdateStack(id, stack2.Spec, swarmStack2.Spec, stack.Version.Index))
 
 	stack, err = store.GetStack(id)
 	require.NoError(err)

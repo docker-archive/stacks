@@ -100,19 +100,29 @@ func (b *DefaultStacksBackend) ListSwarmStacks() ([]interfaces.SwarmStack, error
 }
 
 // UpdateStack updates a stack.
-func (b *DefaultStacksBackend) UpdateStack(id string, spec types.StackSpec) error {
+func (b *DefaultStacksBackend) UpdateStack(id string, spec types.StackSpec, version uint64) error {
 	err := validateSpec(spec)
 	if err != nil {
 		return fmt.Errorf("invalid stack spec: %s", err)
 	}
 
-	// TODO: stack updates need to be revamped to support re-naming of stacks.
-	swarmSpec, err := b.convertToSwarmStackSpec("TODOname", spec)
+	// Inspect the existing stack of the same ID so we can retain the name of
+	// the stack in its labels. If the stack has changed since the user's
+	// request, the underlying StackStore should return an "update out of
+	// sequence" error.
+	stack, err := b.stackStore.GetStack(id)
+	if err != nil {
+		return fmt.Errorf("unable to retrieve existing stack: %s", err)
+	}
+
+	// Convert the new StackSpec to a SwarmStackSpec, while retaining the
+	// namespace label.
+	swarmSpec, err := b.convertToSwarmStackSpec(stack.Name, spec)
 	if err != nil {
 		return fmt.Errorf("unable to translate swarm spec: %s", err)
 	}
 
-	return b.stackStore.UpdateStack(id, spec, swarmSpec)
+	return b.stackStore.UpdateStack(id, spec, swarmSpec, version)
 }
 
 // DeleteStack deletes a stack.

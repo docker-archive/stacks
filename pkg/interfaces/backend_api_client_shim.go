@@ -105,8 +105,8 @@ func (c *BackendAPIClientShim) CreateStack(create types.StackCreate) (types.Stac
 }
 
 // UpdateStack updates a stack.
-func (c *BackendAPIClientShim) UpdateStack(id string, spec types.StackSpec) error {
-	err := c.StacksBackend.UpdateStack(id, spec)
+func (c *BackendAPIClientShim) UpdateStack(id string, spec types.StackSpec, version uint64) error {
+	err := c.StacksBackend.UpdateStack(id, spec, version)
 	go func() {
 		c.stackEvents <- events.Message{
 			Type:   "stack",

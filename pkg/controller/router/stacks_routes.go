@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/errdefs"
@@ -72,7 +74,14 @@ func (sr *stacksRouter) updateStack(_ context.Context, _ http.ResponseWriter, r 
 		return errdefs.InvalidParameter(err)
 	}
 
-	err := sr.backend.UpdateStack(vars["id"], stackSpec)
+	rawVersion := r.URL.Query().Get("version")
+	version, err := strconv.ParseUint(rawVersion, 10, 64)
+	if err != nil {
+		err := fmt.Errorf("invalid stack version '%s': %v", rawVersion, err)
+		return errdefs.InvalidParameter(err)
+	}
+
+	err = sr.backend.UpdateStack(vars["id"], stackSpec, version)
 	if err != nil {
 		logrus.Errorf("Error updating stack %s: %s", vars["id"], err)
 		return err

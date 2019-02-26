@@ -17,6 +17,45 @@ import (
 	"github.com/docker/stacks/pkg/types"
 )
 
+func TestStacksBackendUpdateOutOfSequence(t *testing.T) {
+	// This test ensures that we cannot globber changes by performing updates
+	// with invalid versions.
+	require := require.New(t)
+	ctrl := gomock.NewController(t)
+	backendClient := mocks.NewMockBackendClient(ctrl)
+	b := NewDefaultStacksBackend(interfaces.NewFakeStackStore(), backendClient)
+
+	// Create a stack with a valid StackCreate
+	resp, err := b.CreateStack(types.StackCreate{
+		Metadata: types.Metadata{
+			Name: "teststack",
+		},
+		Spec: types.StackSpec{
+			Collection: "test1",
+		},
+		Orchestrator: types.OrchestratorSwarm,
+	})
+	require.NoError(err)
+
+	// Inspect the stack
+	stack, err := b.GetStack(resp.ID)
+	require.NoError(err)
+
+	stack.Spec.Collection = "test1"
+
+	err = b.UpdateStack(stack.ID, stack.Spec, stack.Version.Index)
+	require.NoError(err)
+
+	stack.Spec.Collection = "test2"
+	err = b.UpdateStack(stack.ID, stack.Spec, stack.Version.Index)
+	require.Error(err)
+	require.Contains(err.Error(), "out of sequence")
+
+	stack, err = b.GetStack(stack.ID)
+	require.NoError(err)
+	require.Equal(stack.Spec.Collection, "test1")
+}
+
 func TestStacksBackendInvalidCreate(t *testing.T) {
 	require := require.New(t)
 	ctrl := gomock.NewController(t)
@@ -124,7 +163,9 @@ func TestStacksBackendCRUD(t *testing.T) {
 			},
 		},
 	}
-	err = b.UpdateStack("2", stack3Spec)
+	stack2, err := b.GetStack("2")
+	require.NoError(err)
+	err = b.UpdateStack("2", stack3Spec, stack2.Version.Index)
 	require.NoError(err)
 
 	// Get the updated stack by ID

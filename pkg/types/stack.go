@@ -8,6 +8,7 @@ import (
 // Stack represents a runtime instantiation of a Docker Compose based application
 type Stack struct {
 	Metadata
+	Version
 	Spec           StackSpec          `json:"spec"`
 	StackResources StackResources     `json:"stack_resources"`
 	Orchestrator   OrchestratorChoice `json:"orchestrator"`

@@ -46,6 +46,8 @@ func (s *FakeStackStore) AddStack(stack types.Stack, swarmStack SwarmStack) (str
 
 	stack.ID = fmt.Sprintf("%d", s.curID)
 	swarmStack.ID = stack.ID
+	stack.Version.Index = 1
+
 	s.stacks[stack.ID] = stackPair{
 		Stack:      stack,
 		SwarmStack: swarmStack,
@@ -64,7 +66,7 @@ func (s *FakeStackStore) getStack(id string) (stackPair, error) {
 }
 
 // UpdateStack updates the stack in the store.
-func (s *FakeStackStore) UpdateStack(id string, spec types.StackSpec, swarmSpec SwarmStackSpec) error {
+func (s *FakeStackStore) UpdateStack(id string, spec types.StackSpec, swarmSpec SwarmStackSpec, version uint64) error {
 	s.Lock()
 	defer s.Unlock()
 
@@ -73,10 +75,14 @@ func (s *FakeStackStore) UpdateStack(id string, spec types.StackSpec, swarmSpec 
 		return errNotFound
 	}
 
+	if existingStack.Version.Index != version {
+		return fmt.Errorf("update out of sequence")
+	}
+	existingStack.Version.Index++
+
 	existingStack.Stack.Spec = spec
 	existingStack.SwarmStack.Spec = swarmSpec
 	s.stacks[id] = existingStack
-
 	return nil
 }
 

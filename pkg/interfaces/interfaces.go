@@ -18,7 +18,7 @@ type StacksBackend interface {
 	CreateStack(types.StackCreate) (types.StackCreateResponse, error)
 	GetStack(id string) (types.Stack, error)
 	ListStacks() ([]types.Stack, error)
-	UpdateStack(id string, spec types.StackSpec) error
+	UpdateStack(id string, spec types.StackSpec, version uint64) error
 	DeleteStack(id string) error
 
 	// The following operations are only used by the Reconciler and not exposed
@@ -74,7 +74,7 @@ type BackendClient interface {
 // perform CRUD operations for all objects required by the Stacks Controller.
 type StackStore interface {
 	AddStack(types.Stack, SwarmStack) (string, error)
-	UpdateStack(string, types.StackSpec, SwarmStackSpec) error
+	UpdateStack(string, types.StackSpec, SwarmStackSpec, uint64) error
 	DeleteStack(string) error
 
 	GetStack(id string) (types.Stack, error)
