@@ -13,6 +13,7 @@ import (
 	"github.com/docker/stacks/pkg/controller/backend"
 	stacksRouter "github.com/docker/stacks/pkg/controller/router"
 	"github.com/docker/stacks/pkg/interfaces"
+	"github.com/docker/stacks/pkg/reconciler"
 )
 
 // ServerOptions is the set of options required for the creation of a
@@ -43,30 +44,44 @@ func Server(opts ServerOptions) error {
 	// for validation and conversion purposes.
 	swarmResourceBackend := interfaces.NewSwarmAPIClientShim(dclient)
 
-	// Create the underlying storage for stacks and swarm-stacks as an
+	// Create the underlying storage for stacks and swarmstacks as an
 	// in-memory store.
 	stackStore := interfaces.NewFakeStackStore()
 
-	// Create a Stacks API Backend, which includes the API handling logic and
-	// type conversions.
+	// Create a Stacks API Backend, which includes the API handling logic.
 	stacksBackend := backend.NewDefaultStacksBackend(stackStore, swarmResourceBackend)
 
-	// TODO: create a BackendClient shim for the reconciler
-	// backendClient := interfaces.NewBackendAPIClientShim(dclient, stacksBackend)
+	// Create a BackendClient shim for the reconciler
+	backendClient := interfaces.NewBackendAPIClientShim(dclient, stacksBackend)
 
-	// Create a Stacks API Router, which includes basic HTTP handlers for the
-	// Stacks APIs.
-	r := stacksRouter.NewRouter(stacksBackend)
+	// Create the reconciler manager
+	reconcilerManager := reconciler.New(backendClient)
+
+	// Create a Stacks API Router, which includes basic HTTP handlers
+	// for the Stacks APIs. This is wired up against the backendClient
+	// so that the API can trigger stack events.
+	r := stacksRouter.NewRouter(backendClient)
+
+	errChan := make(chan error)
 
 	server := &http.Server{
 		Addr:    fmt.Sprintf("0.0.0.0:%d", opts.ServerPort),
 		Handler: registerRoutes(r),
 	}
 
-	// TODO: Also run stacks reconciler in the background
+	// Launch the reconciler in a goroutine
+	go func() {
+		logrus.Infof("Starting Swarm Stacks reconciler")
+		errChan <- reconcilerManager.Run()
+	}()
 
-	logrus.Infof("Running standalone Stacks API server")
-	return server.ListenAndServe()
+	// Launch the HTTP server in a goroutine
+	go func() {
+		logrus.Infof("Running standalone Stacks API server")
+		errChan <- server.ListenAndServe()
+	}()
+
+	return <-errChan
 }
 
 // versionMatcher defines a variable matcher to be parsed by the router

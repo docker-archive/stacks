@@ -4,6 +4,7 @@ import (
 	"sync"
 
 	"github.com/docker/docker/api/types/events"
+	"github.com/sirupsen/logrus"
 
 	"github.com/docker/stacks/pkg/interfaces"
 	"github.com/docker/stacks/pkg/reconciler/notifier"
@@ -143,6 +144,7 @@ func (d *dispatcher) HandleEvents(eventC chan interface{}) error {
 				if err := d.r.Reconcile(kind, id); err != nil {
 					// TODO(dperny): if a given object always fails, we'll stay
 					// in this state forever, looping again and again.
+					logrus.Error(err)
 					d.Notify(kind, id)
 				}
 			}

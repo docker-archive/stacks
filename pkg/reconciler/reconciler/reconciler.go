@@ -9,6 +9,7 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/errdefs"
+	"github.com/sirupsen/logrus"
 
 	"github.com/docker/stacks/pkg/interfaces"
 	"github.com/docker/stacks/pkg/reconciler/notifier"
@@ -109,6 +110,7 @@ func (r *reconciler) reconcileStack(id string) error {
 			// TODO(dperny): second 2 arguments?
 			// TODO(dperny): we don't cache service data right now, but we
 			// might want to do so later
+			logrus.Debugf("Unable to find existing service, creating service with spec %+v", spec)
 			_, err := r.cli.CreateService(spec, "", false)
 			if err != nil {
 				return err

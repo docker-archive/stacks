@@ -10,6 +10,7 @@ import (
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
+	"github.com/sirupsen/logrus"
 
 	"github.com/docker/stacks/pkg/types"
 )
@@ -39,6 +40,7 @@ func NewBackendAPIClientShim(dclient client.CommonAPIClient, backend StacksBacke
 		StacksBackend:        backend,
 		SwarmResourceBackend: NewSwarmAPIClientShim(dclient),
 		stackEvents:          make(chan events.Message),
+		subscribers:          make(map[chan interface{}]context.CancelFunc),
 	}
 }
 
@@ -94,11 +96,15 @@ func (c *BackendAPIClientShim) CreateStack(create types.StackCreate) (types.Stac
 	}
 
 	go func() {
+		logrus.Debugf("writing stack create event")
 		c.stackEvents <- events.Message{
 			Type:   "stack",
 			Action: "create",
-			ID:     resp.ID,
+			Actor: events.Actor{
+				ID: resp.ID,
+			},
 		}
+		logrus.Debugf("wrote stack create event")
 	}()
 
 	return resp, err
@@ -108,11 +114,15 @@ func (c *BackendAPIClientShim) CreateStack(create types.StackCreate) (types.Stac
 func (c *BackendAPIClientShim) UpdateStack(id string, spec types.StackSpec, version uint64) error {
 	err := c.StacksBackend.UpdateStack(id, spec, version)
 	go func() {
+		logrus.Debugf("writing stack update event")
 		c.stackEvents <- events.Message{
 			Type:   "stack",
 			Action: "update",
-			ID:     id,
+			Actor: events.Actor{
+				ID: id,
+			},
 		}
+		logrus.Debugf("wrote stack update event")
 	}()
 
 	return err

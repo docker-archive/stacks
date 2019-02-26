@@ -25,6 +25,8 @@ type StacksBackend interface {
 	// via the Stacks API
 	GetSwarmStack(id string) (SwarmStack, error)
 	ListSwarmStacks() ([]SwarmStack, error)
+
+	ParseComposeInput(input types.ComposeInput) (*types.StackCreate, error)
 }
 
 // SwarmResourceBackend is a subset of the swarm.Backend interface, combined

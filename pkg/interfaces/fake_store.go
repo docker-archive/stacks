@@ -95,18 +95,18 @@ func (s *FakeStackStore) DeleteStack(id string) error {
 }
 
 // GetStack retrieves a single stack from the store.
-func (s *FakeStackStore) GetStack(name string) (types.Stack, error) {
+func (s *FakeStackStore) GetStack(id string) (types.Stack, error) {
 	s.RLock()
 	defer s.RUnlock()
-	stackPair, err := s.getStack(name)
+	stackPair, err := s.getStack(id)
 	return stackPair.Stack, err
 }
 
 // GetSwarmStack retrieves a single swarm stack from the store.
-func (s *FakeStackStore) GetSwarmStack(name string) (SwarmStack, error) {
+func (s *FakeStackStore) GetSwarmStack(id string) (SwarmStack, error) {
 	s.RLock()
 	defer s.RUnlock()
-	stackPair, err := s.getStack(name)
+	stackPair, err := s.getStack(id)
 	return stackPair.SwarmStack, err
 }
 

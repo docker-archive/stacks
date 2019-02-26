@@ -7,6 +7,7 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/errdefs"
 )
 
 // SwarmResourceAPIClientShim is an implementation of SwarmResourceBackend
@@ -34,6 +35,9 @@ func (c *SwarmResourceAPIClientShim) GetService(idOrName string, insertDefaults 
 	svc, _, err := c.dclient.ServiceInspectWithRaw(context.Background(), idOrName, dockerTypes.ServiceInspectOptions{
 		InsertDefaults: insertDefaults,
 	})
+	if client.IsErrNotFound(err) {
+		return svc, errdefs.NotFound(err)
+	}
 	return svc, err
 }
 
@@ -56,6 +60,10 @@ func (c *SwarmResourceAPIClientShim) UpdateService(
 ) (*dockerTypes.ServiceUpdateResponse, error) {
 	options.QueryRegistry = queryRegistry
 	resp, err := c.dclient.ServiceUpdate(context.Background(), idOrName, swarm.Version{Index: version}, spec, options)
+	if client.IsErrNotFound(err) {
+		return &resp, errdefs.NotFound(err)
+	}
+
 	return &resp, err
 }
 
@@ -72,6 +80,9 @@ func (c *SwarmResourceAPIClientShim) GetTasks(options dockerTypes.TaskListOption
 // GetTask returns a task.
 func (c *SwarmResourceAPIClientShim) GetTask(taskID string) (swarm.Task, error) {
 	task, _, err := c.dclient.TaskInspectWithRaw(context.Background(), taskID)
+	if client.IsErrNotFound(err) {
+		return task, errdefs.NotFound(err)
+	}
 	return task, err
 }
 
@@ -94,6 +105,9 @@ func (c *SwarmResourceAPIClientShim) RemoveSecret(idOrName string) error {
 // GetSecret inspects a secret.
 func (c *SwarmResourceAPIClientShim) GetSecret(id string) (swarm.Secret, error) {
 	secret, _, err := c.dclient.SecretInspectWithRaw(context.Background(), id)
+	if client.IsErrNotFound(err) {
+		return secret, errdefs.NotFound(err)
+	}
 	return secret, err
 }
 
@@ -121,6 +135,9 @@ func (c *SwarmResourceAPIClientShim) RemoveConfig(id string) error {
 // GetConfig inspects a config.
 func (c *SwarmResourceAPIClientShim) GetConfig(id string) (swarm.Config, error) {
 	cfg, _, err := c.dclient.ConfigInspectWithRaw(context.Background(), id)
+	if client.IsErrNotFound(err) {
+		return cfg, errdefs.NotFound(err)
+	}
 	return cfg, err
 }
 
@@ -138,7 +155,12 @@ func (c *SwarmResourceAPIClientShim) GetNetworks(f filters.Args) ([]dockerTypes.
 
 // GetNetwork inspects a network.
 func (c *SwarmResourceAPIClientShim) GetNetwork(name string) (dockerTypes.NetworkResource, error) {
-	return c.dclient.NetworkInspect(context.Background(), name, dockerTypes.NetworkInspectOptions{})
+	network, err := c.dclient.NetworkInspect(context.Background(), name, dockerTypes.NetworkInspectOptions{})
+	if client.IsErrNotFound(err) {
+		return network, errdefs.NotFound(err)
+	}
+
+	return network, err
 }
 
 // GetNetworksByName is a great example of a bad interface design.
