@@ -1,0 +1,12 @@
+version: '2.4'
+services:
+  web:
+    image: "busybox"
+    command: "sleep 1h"
+    volumes:
+        - $VOL1
+        - $VOL2
+        - $VOL3
+
+volumes:
+  datavolume:

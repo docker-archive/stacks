@@ -7,6 +7,7 @@ import (
 	"github.com/docker/stacks/pkg/compose/loader"
 	composetypes "github.com/docker/stacks/pkg/compose/types"
 	"github.com/docker/stacks/pkg/interfaces"
+	"github.com/docker/stacks/pkg/substitution"
 	"github.com/docker/stacks/pkg/types"
 )
 
@@ -142,25 +143,32 @@ func (b *DefaultStacksBackend) ParseComposeInput(input types.ComposeInput) (*typ
 }
 
 func (b *DefaultStacksBackend) convertToSwarmStackSpec(name string, spec types.StackSpec) (interfaces.SwarmStackSpec, error) {
+
+	// Substitute variables with desired property values
+	substitutedSpec, err := substitution.DoSubstitution(spec)
+	if err != nil {
+		return interfaces.SwarmStackSpec{}, err
+	}
+
 	namespace := convert.NewNamespace(name)
 
-	services, err := convert.Services(namespace, spec, b.swarmBackend)
+	services, err := convert.Services(namespace, substitutedSpec, b.swarmBackend)
 	if err != nil {
 		return interfaces.SwarmStackSpec{}, fmt.Errorf("failed to convert services : %s", err)
 	}
 
-	configs, err := convert.Configs(namespace, spec.Configs)
+	configs, err := convert.Configs(namespace, substitutedSpec.Configs)
 	if err != nil {
 		return interfaces.SwarmStackSpec{}, fmt.Errorf("failed to convert configs: %s", err)
 	}
 
-	secrets, err := convert.Secrets(namespace, spec.Secrets)
+	secrets, err := convert.Secrets(namespace, substitutedSpec.Secrets)
 	if err != nil {
 		return interfaces.SwarmStackSpec{}, fmt.Errorf("failed to convert secrets: %s", err)
 	}
 
-	serviceNetworks := getServicesDeclaredNetworks(spec.Services)
-	networkCreates, _ := convert.Networks(namespace, spec.Networks, serviceNetworks)
+	serviceNetworks := getServicesDeclaredNetworks(substitutedSpec.Services)
+	networkCreates, _ := convert.Networks(namespace, substitutedSpec.Networks, serviceNetworks)
 	// TODO: validate external networks?
 
 	stackSpec := interfaces.SwarmStackSpec{

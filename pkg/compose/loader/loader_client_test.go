@@ -1,8 +1,11 @@
 package loader
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
+
+	"github.com/docker/stacks/pkg/compose/template"
 
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"
@@ -15,6 +18,11 @@ func TestComposeWithEnv(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Check(t, is.Len(stack.Spec.Services, 1))
 	assert.Check(t, is.Len(stack.Spec.PropertyValues, 4))
+	data, err := json.Marshal(stack.Spec)
+	assert.NilError(t, err)
+	matches := template.DefaultPattern.FindAllStringSubmatch(string(data), -1)
+	assert.Check(t, is.Len(matches, 4), "%s\nNot enough variables in spec, only found: %#v", string(data), matches)
+
 	// TODO - deeper inspection of the results, etc.
 
 	input, err = LoadComposefile([]string{"../tests/fixtures/environment-interpolation-with-defaults/docker-compose.yml"})

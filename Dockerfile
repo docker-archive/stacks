@@ -29,7 +29,7 @@ RUN go build -i ./e2e/... && \
 FROM builder as unit-test
 
 # TODO - temporary unit test wiring...
-RUN go test -covermode=count -coverprofile=/cover.out -v $(go list ./pkg/...)
+RUN go test -coverpkg=./pkg/... -covermode=count -coverprofile=/cover.out -v $(go list ./pkg/...)
 
 FROM builder as lint
 RUN gometalinter --config gometalinter.json ./...
