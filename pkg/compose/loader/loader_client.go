@@ -39,6 +39,10 @@ func LoadComposefile(composefiles []string) (*types.ComposeInput, error) {
 // in prior to sending the StackCreate to the Create API.  If defaults
 // are defined in the compose file(s) those defaults will be included.
 func ParseComposeInput(input types.ComposeInput) (*types.StackCreate, error) {
+	if len(input.ComposeFiles) == 0 {
+		return nil, nil
+	}
+
 	configDetails, err := getConfigDetails(input)
 	if err != nil {
 		return nil, err

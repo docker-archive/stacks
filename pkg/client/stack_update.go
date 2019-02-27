@@ -24,5 +24,5 @@ func (cli *Client) StackUpdate(ctx context.Context, id string, version types.Ver
 
 	resp, err := cli.post(ctx, "/stacks/"+id, query, spec, headers)
 	ensureReaderClosed(resp)
-	return err
+	return wrapResponseError(err, resp, "stack", id)
 }

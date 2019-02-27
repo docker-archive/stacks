@@ -8,8 +8,7 @@ import (
 )
 
 // StackCreate creates a new Stack
-func (cli *Client) StackCreate(ctx context.Context, stack types.StackCreate, options types.StackCreateOptions) (types.Stack, error) {
-
+func (cli *Client) StackCreate(ctx context.Context, stack types.StackCreate, options types.StackCreateOptions) (types.StackCreateResponse, error) {
 	headers := map[string][]string{
 		"version": {cli.settings.Version},
 	}
@@ -18,7 +17,7 @@ func (cli *Client) StackCreate(ctx context.Context, stack types.StackCreate, opt
 		headers["X-Registry-Auth"] = []string{options.EncodedRegistryAuth}
 	}
 
-	var response types.Stack
+	var response types.StackCreateResponse
 	resp, err := cli.post(ctx, "/stacks", nil, stack, headers)
 	if err != nil {
 		return response, err

@@ -17,7 +17,7 @@ func (cli *Client) StackInspect(ctx context.Context, id string) (types.Stack, er
 	var response types.Stack
 	resp, err := cli.get(ctx, "/stacks/"+id, nil, headers)
 	if err != nil {
-		return response, err
+		return response, wrapResponseError(err, resp, "stack", id)
 	}
 
 	err = json.NewDecoder(resp.body).Decode(&response)
