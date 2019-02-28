@@ -353,6 +353,21 @@ func (mr *MockBackendClientMockRecorder) ListSwarmStacks() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListSwarmStacks", reflect.TypeOf((*MockBackendClient)(nil).ListSwarmStacks))
 }
 
+// ParseComposeInput mocks base method
+func (m *MockBackendClient) ParseComposeInput(arg0 types0.ComposeInput) (*types0.StackCreate, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ParseComposeInput", arg0)
+	ret0, _ := ret[0].(*types0.StackCreate)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ParseComposeInput indicates an expected call of ParseComposeInput
+func (mr *MockBackendClientMockRecorder) ParseComposeInput(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ParseComposeInput", reflect.TypeOf((*MockBackendClient)(nil).ParseComposeInput), arg0)
+}
+
 // RemoveConfig mocks base method
 func (m *MockBackendClient) RemoveConfig(arg0 string) error {
 	m.ctrl.T.Helper()
@@ -480,15 +495,15 @@ func (mr *MockBackendClientMockRecorder) UpdateService(arg0, arg1, arg2, arg3, a
 }
 
 // UpdateStack mocks base method
-func (m *MockBackendClient) UpdateStack(arg0 string, arg1 types0.StackSpec) error {
+func (m *MockBackendClient) UpdateStack(arg0 string, arg1 types0.StackSpec, arg2 uint64) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "UpdateStack", arg0, arg1)
+	ret := m.ctrl.Call(m, "UpdateStack", arg0, arg1, arg2)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // UpdateStack indicates an expected call of UpdateStack
-func (mr *MockBackendClientMockRecorder) UpdateStack(arg0, arg1 interface{}) *gomock.Call {
+func (mr *MockBackendClientMockRecorder) UpdateStack(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateStack", reflect.TypeOf((*MockBackendClient)(nil).UpdateStack), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateStack", reflect.TypeOf((*MockBackendClient)(nil).UpdateStack), arg0, arg1, arg2)
 }

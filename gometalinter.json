@@ -8,7 +8,8 @@
     "parameter .* always receives",
     "fake_store.go:1::warning: file is not goimported",
     "mock_backend.go:1::warning: file is not goimported",
-    "mock_reconciler.go:1::warning: file is not goimported"
+    "mock_reconciler.go:1::warning: file is not goimported",
+    "mock_resources_client.go:1::warning: file is not goimported"
   ],
   "EnableGC": true,
   "Linters": {
