@@ -8,7 +8,7 @@ BUILD_ARGS= \
     --build-arg ALPINE_BASE=alpine:3.8 \
     --build-arg GOLANG_BASE=golang:1.11-alpine3.8
 
-build:
+build: generate
 	docker build $(BUILD_ARGS) -t $(ORG)/$(CONTROLLER_IMAGE_NAME):$(TAG) .
 
 test:
