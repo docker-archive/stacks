@@ -1,3 +1,2 @@
 *.sw*
 cover.out
-pkg/compose/schema/bindata.go
