@@ -18,6 +18,7 @@ const (
 // stacks and is never exposed via the API.
 type SwarmStack struct {
 	ID   string
+	Meta swarm.Meta
 	Spec SwarmStackSpec
 }
 
