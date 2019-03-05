@@ -40,7 +40,11 @@ type dispatcher struct {
 	// where the key is the ID and the value is the kind. however, we have to
 	// reconcile objects in order: stacks, then networks, configs, and secrets,
 	// and finally services.
-	pendingStacks map[string]struct{}
+	pendingStacks   map[string]struct{}
+	pendingNetworks map[string]struct{}
+	pendingSecrets  map[string]struct{}
+	pendingConfigs  map[string]struct{}
+	pendingServices map[string]struct{}
 }
 
 // New creates and returns the default Dispatcher object, which will
@@ -53,8 +57,12 @@ func New(r reconciler.Reconciler, register notifier.Register) Dispatcher {
 // exists separately for testing purposes.
 func newDispatcher(r reconciler.Reconciler, register notifier.Register) *dispatcher {
 	m := &dispatcher{
-		r:             r,
-		pendingStacks: map[string]struct{}{},
+		r:               r,
+		pendingStacks:   map[string]struct{}{},
+		pendingNetworks: map[string]struct{}{},
+		pendingSecrets:  map[string]struct{}{},
+		pendingConfigs:  map[string]struct{}{},
+		pendingServices: map[string]struct{}{},
 	}
 	register.Register(m)
 	return m
@@ -69,9 +77,14 @@ func (d *dispatcher) Notify(kind, id string) {
 	switch kind {
 	case interfaces.StackEventType:
 		d.pendingStacks[id] = struct{}{}
+	case events.NetworkEventType:
+		d.pendingNetworks[id] = struct{}{}
+	case events.SecretEventType:
+		d.pendingSecrets[id] = struct{}{}
+	case events.ConfigEventType:
+		d.pendingConfigs[id] = struct{}{}
 	case events.ServiceEventType:
-		// TODO(dperny): we don't handle service events, so we don't yet
-		// implement this case.
+		d.pendingServices[id] = struct{}{}
 	}
 }
 
@@ -165,15 +178,37 @@ func (d *dispatcher) resolveMessage(ev interface{}) {
 // pickObject selects and returns the next object to be processed. It returns
 // the object event type and the object ID. If no objects remain, it will
 // return noMoreObjects as the kind
+//
+// pickObjects picks objects in a specific order: Stack, Network, Secret,
+// Config, and finally Service. Stacks must come first, because every other
+// object type will depend on the latest stack, and Services must come last
+// because they depend on the other object types. The middle 3 object types,
+// Network, Secret, and Config, could be done in any order, but it's simpler
+// to just assign them an order
 func (d *dispatcher) pickObject() (string, string) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	// first, do we have any Stacks ready?
 	for stack := range d.pendingStacks {
 		// it should be safe to delete from a map we're iterating over.
 		// especially considering we're not iterating any further.
 		delete(d.pendingStacks, stack)
 		return interfaces.StackEventType, stack
+	}
+	for nw := range d.pendingNetworks {
+		delete(d.pendingNetworks, nw)
+		return events.NetworkEventType, nw
+	}
+	for secret := range d.pendingSecrets {
+		delete(d.pendingSecrets, secret)
+		return events.SecretEventType, secret
+	}
+	for config := range d.pendingConfigs {
+		delete(d.pendingConfigs, config)
+		return events.ConfigEventType, config
+	}
+	for service := range d.pendingServices {
+		delete(d.pendingServices, service)
+		return events.ServiceEventType, service
 	}
 	return noMoreObjects, ""
 }

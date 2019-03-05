@@ -167,6 +167,7 @@ var _ = Describe("Reconciler", func() {
 			f.stacksByName[stackFixture.Spec.Annotations.Name] = stackFixture.ID
 			f.stacks[stackFixture.ID] = stackFixture
 		})
+
 		JustBeforeEach(func() {
 			// this test handles all ReconcileStack cases, so its pretty
 			// obvious that ReconcileStack is gonna be called for each of them
@@ -325,10 +326,12 @@ var _ = Describe("Reconciler", func() {
 					Expect(err).ToNot(HaveOccurred())
 				})
 			})
+
 			When("the service belongs to a stack", func() {
 				var (
 					spec swarm.ServiceSpec
 				)
+
 				BeforeEach(func() {
 					spec = swarm.ServiceSpec{
 						Annotations: swarm.Annotations{
@@ -340,12 +343,14 @@ var _ = Describe("Reconciler", func() {
 					Expect(createErr).ToNot(HaveOccurred())
 					id = resp.ID
 				})
+
 				When("the stack has been deleted", func() {
 					It("should delete the service", func() {
 						// There should be no services in the fake anymore.
 						Expect(f).To(ConsistOfServices([]swarm.ServiceSpec{}))
 					})
 				})
+
 				When("the resource does not match the stack definition", func() {
 					BeforeEach(func() {
 						differentSpec := spec
@@ -368,6 +373,7 @@ var _ = Describe("Reconciler", func() {
 						Expect(err).ToNot(HaveOccurred())
 					})
 				})
+
 				When("the service does not have a matching spec in the stack", func() {
 					BeforeEach(func() {
 						f.stacks[stackFixture.ID] = stackFixture
@@ -380,7 +386,8 @@ var _ = Describe("Reconciler", func() {
 						Expect(err).ToNot(HaveOccurred())
 					})
 				})
-				When("the resource does match the stack's definition", func() {
+
+				When("the service does match the stack's definition", func() {
 					BeforeEach(func() {
 						stackFixture.Spec.Services = append(stackFixture.Spec.Services, spec)
 						f.stacks[stackFixture.ID] = stackFixture
