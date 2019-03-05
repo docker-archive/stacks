@@ -203,6 +203,21 @@ func (mr *MockBackendClientMockRecorder) GetNetworksByName(arg0 interface{}) *go
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetNetworksByName", reflect.TypeOf((*MockBackendClient)(nil).GetNetworksByName), arg0)
 }
 
+// GetNode mocks base method
+func (m *MockBackendClient) GetNode(arg0 string) (swarm.Node, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetNode", arg0)
+	ret0, _ := ret[0].(swarm.Node)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetNode indicates an expected call of GetNode
+func (mr *MockBackendClientMockRecorder) GetNode(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetNode", reflect.TypeOf((*MockBackendClient)(nil).GetNode), arg0)
+}
+
 // GetSecret mocks base method
 func (m *MockBackendClient) GetSecret(arg0 string) (swarm.Secret, error) {
 	m.ctrl.T.Helper()
@@ -323,6 +338,20 @@ func (mr *MockBackendClientMockRecorder) GetTasks(arg0 interface{}) *gomock.Call
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTasks", reflect.TypeOf((*MockBackendClient)(nil).GetTasks), arg0)
 }
 
+// Info mocks base method
+func (m *MockBackendClient) Info() swarm.Info {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Info")
+	ret0, _ := ret[0].(swarm.Info)
+	return ret0
+}
+
+// Info indicates an expected call of Info
+func (mr *MockBackendClientMockRecorder) Info() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Info", reflect.TypeOf((*MockBackendClient)(nil).Info))
+}
+
 // ListStacks mocks base method
 func (m *MockBackendClient) ListStacks() ([]types0.Stack, error) {
 	m.ctrl.T.Helper()
@@ -351,6 +380,21 @@ func (m *MockBackendClient) ListSwarmStacks() ([]interfaces.SwarmStack, error) {
 func (mr *MockBackendClientMockRecorder) ListSwarmStacks() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListSwarmStacks", reflect.TypeOf((*MockBackendClient)(nil).ListSwarmStacks))
+}
+
+// ParseComposeInput mocks base method
+func (m *MockBackendClient) ParseComposeInput(arg0 types0.ComposeInput) (*types0.StackCreate, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ParseComposeInput", arg0)
+	ret0, _ := ret[0].(*types0.StackCreate)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ParseComposeInput indicates an expected call of ParseComposeInput
+func (mr *MockBackendClientMockRecorder) ParseComposeInput(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ParseComposeInput", reflect.TypeOf((*MockBackendClient)(nil).ParseComposeInput), arg0)
 }
 
 // RemoveConfig mocks base method
@@ -480,15 +524,15 @@ func (mr *MockBackendClientMockRecorder) UpdateService(arg0, arg1, arg2, arg3, a
 }
 
 // UpdateStack mocks base method
-func (m *MockBackendClient) UpdateStack(arg0 string, arg1 types0.StackSpec) error {
+func (m *MockBackendClient) UpdateStack(arg0 string, arg1 types0.StackSpec, arg2 uint64) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "UpdateStack", arg0, arg1)
+	ret := m.ctrl.Call(m, "UpdateStack", arg0, arg1, arg2)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // UpdateStack indicates an expected call of UpdateStack
-func (mr *MockBackendClientMockRecorder) UpdateStack(arg0, arg1 interface{}) *gomock.Call {
+func (mr *MockBackendClientMockRecorder) UpdateStack(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateStack", reflect.TypeOf((*MockBackendClient)(nil).UpdateStack), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateStack", reflect.TypeOf((*MockBackendClient)(nil).UpdateStack), arg0, arg1, arg2)
 }
