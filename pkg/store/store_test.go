@@ -20,6 +20,10 @@ import (
 )
 
 var _ = Describe("StackStore", func() {
+	// NOTE(dperny): You're probably asking why we test the StackStore object
+	// instead of the stacks functions directly. The answer is just that I
+	// refactored the code into functions (for reuse) and did not want to have
+	// to rewrite all of the tests.
 	It("should conform to the interfaces.StackStore interface", func() {
 		// This doesn't actually contain any useful assertions, it'll just fail
 		// at build time. However, we have to include at least one use of the
