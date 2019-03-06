@@ -9,7 +9,11 @@
     "fake_store.go:1::warning: file is not goimported",
     "mock_backend.go:1::warning: file is not goimported",
     "mock_reconciler.go:1::warning: file is not goimported",
-    "mock_resources_client.go:1::warning: file is not goimported"
+    "mock_resources_client.go:1::warning: file is not goimported",
+    "mock_kubecompose_v1beta2.go:1::warning: file is not goimported",
+    "mock_kubecompose_clientset.go:1::warning: file is not goimported",
+    "mock_reconciler.go:1::warning: file is not goimported",
+    "mock_kubernetes_corev1.go:1::warning: file is not goimported"
   ],
   "EnableGC": true,
   "Linters": {

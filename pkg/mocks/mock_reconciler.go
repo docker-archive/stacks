@@ -34,7 +34,6 @@ func (m *MockReconciler) EXPECT() *MockReconcilerMockRecorder {
 
 // Reconcile mocks base method
 func (m *MockReconciler) Reconcile(arg0, arg1 string) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Reconcile", arg0, arg1)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -42,6 +41,5 @@ func (m *MockReconciler) Reconcile(arg0, arg1 string) error {
 
 // Reconcile indicates an expected call of Reconcile
 func (mr *MockReconcilerMockRecorder) Reconcile(arg0, arg1 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Reconcile", reflect.TypeOf((*MockReconciler)(nil).Reconcile), arg0, arg1)
 }

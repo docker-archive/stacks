@@ -3,17 +3,17 @@ package substitution
 import (
 	"testing"
 
-	composetypes "github.com/docker/stacks/pkg/compose/types"
-	"github.com/docker/stacks/pkg/types"
-
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"
+
+	composetypes "github.com/docker/stacks/pkg/compose/types"
+	"github.com/docker/stacks/pkg/types"
 )
 
 func TestDoPortSubstitutions(t *testing.T) {
 	spec := types.StackSpec{
-		Services: composetypes.Services{
-			composetypes.ServiceConfig{
+		Services: []composetypes.ServiceConfig{
+			{
 				Ports: []composetypes.ServicePortConfig{
 					{
 						Variable: "${PORT1}",
@@ -49,8 +49,8 @@ func TestDoPortSubstitutions(t *testing.T) {
 
 func TestDoVolumeSubstitutions(t *testing.T) {
 	spec := types.StackSpec{
-		Services: composetypes.Services{
-			composetypes.ServiceConfig{
+		Services: []composetypes.ServiceConfig{
+			{
 				Volumes: []composetypes.ServiceVolumeConfig{
 					{
 						Target: "${VOL1}",
