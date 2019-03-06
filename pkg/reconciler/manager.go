@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
 
 	"github.com/docker/stacks/pkg/interfaces"
@@ -36,6 +37,12 @@ type Manager struct {
 
 	d dispatcher.Dispatcher
 	r reconciler.Reconciler
+
+	nodeID string
+	// notifyCluster is used to signal from JoinCluster and LeaveCluster. It
+	// will only ever be read from in one place, we can use a channel instead
+	// of a more complicated structure like a Cond.
+	notifyCluster chan struct{}
 }
 
 // New creates a new Manager, the main entrypoint for the reconciler package,
@@ -44,6 +51,12 @@ func New(client interfaces.BackendClient) *Manager {
 	m := &Manager{
 		client: client,
 		stop:   make(chan struct{}),
+		// notifyCluster is buffered to 1. This means that we can leave a
+		// notification in the buffer for the reader to get at any time. When
+		// we try to write to the channel, we should do so in a select. If the
+		// write cannot proceed, that means there is already a notification in
+		// the buffer so there's no need to put another one.
+		notifyCluster: make(chan struct{}, 1),
 	}
 
 	// create a new Dispatcher and Reconciler, with a NotificationForwarder to
@@ -71,7 +84,18 @@ func (m *Manager) Run() error {
 	)
 	m.startOnce.Do(func() {
 		ran = true
-		err = m.run()
+		// start up a loop, where we wait until we become a leader, and then we
+		// run the manager, over and over again, until the stop channel is
+		// closed
+		for {
+			m.waitReady()
+			err = m.run()
+			select {
+			case <-m.stop:
+				return
+			default:
+			}
+		}
 	})
 
 	if !ran {
@@ -82,12 +106,97 @@ func (m *Manager) Run() error {
 	return err
 }
 
+// JoinCluster notifies the Manager that this node has joined a swarmkit
+// cluster.
+func (m *Manager) JoinCluster() {
+	// try writing to the channel if it's ready. if it's not ready, that means
+	// that there is already a notification in the buffer, so we don't need to
+	// put one there.
+	select {
+	case m.notifyCluster <- struct{}{}:
+	default:
+	}
+}
+
+// LeaveCluster notifies the Manager that this node has left a swarmkit cluster
+func (m *Manager) LeaveCluster() {
+	// same as JoinCluster
+	select {
+	case m.notifyCluster <- struct{}{}:
+	default:
+	}
+}
+
 // Stop instructs the runner to stop executing. It will cause Run to exit.
 // Subsequent calls to Stop after the first have no effect.
 func (m *Manager) Stop() {
 	m.stopOnce.Do(func() {
 		close(m.stop)
 	})
+}
+
+// waitReady blocks until the node this manager is working on is a swarmkit
+// leader. it can be safely re-entered any number of times, and it exits when
+// the node has become the leader, or Stop has been called
+func (m *Manager) waitReady() {
+	// set up a watch for node events
+	f := filters.NewArgs(filters.Arg("type", events.NodeEventType))
+	_, eventC := m.client.SubscribeToEvents(time.Time{}, time.Time{}, f)
+	defer m.client.UnsubscribeFromEvents(eventC)
+	for {
+		select {
+		case <-m.notifyCluster:
+			// the result of Info is not a pointer, so there is no need to nil
+			// check it. Additionally, NodeID will be empty string if there is
+			// no Info object. This handles both the JoinCluster and
+			// LeaveCluster cases.
+			m.nodeID = m.client.Info().NodeID
+			if m.checkLeadership() {
+				return
+			}
+		case ev, ok := <-eventC:
+			// if the channel gets cut off for whatever reason, return.
+			// TODO(dperny): in the "standalone" case, where this is actually
+			// the result of a network socket, this might cause us to start
+			// trying to run the manager when it's not supposed to. Luckily,
+			// the result of that shouldn't be catastrophic, and anyway
+			// standalone isn't a supported production use case.
+			if !ok {
+				return
+			}
+			if m.checkNodeEventLeadership(ev) {
+				return
+			}
+		case <-m.stop:
+			return
+		}
+	}
+}
+
+// checkLeadership is a helper function that checks if this node is currently
+// the leader
+func (m *Manager) checkLeadership() bool {
+	// we can actually discard the error, because we're only
+	// checking for the existence of a ManagerStatus, which the
+	// default value of swarm.Node will not include
+	n, _ := m.client.GetNode(m.nodeID)
+	return n.ManagerStatus != nil && n.ManagerStatus.Leader
+}
+
+// checkNodeEventLeadership is a helper function that checks if this node is
+// currently a leader, taking an event to decide whether to actually do API
+// calls.
+func (m *Manager) checkNodeEventLeadership(ev interface{}) bool {
+	msg, ok := ev.(events.Message)
+	// even though we passed a filter for node events, in the interest
+	// of defensive programming, make sure that's really what this is.
+	//
+	// then, check if this message is an update to THIS node. If it is,
+	// we should see if we've become the leader.
+	return ok &&
+		msg.Type == events.NodeEventType &&
+		msg.Actor.ID == m.nodeID &&
+		m.checkLeadership()
 }
 
 // run is the private method that implements the actual logic of running.
@@ -139,7 +248,13 @@ func (m *Manager) run() error {
 				if !ok {
 					// TODO(dperny): what happens if we lose this channel
 					// without asking for it to be shutdown? right now, this
-					// case isn't handled well
+					// case isn't handled well. We should probably start a new
+					// event channel, though.
+					return
+				}
+				// check if we're currently the leader. if we're not, we should
+				// return, closing the dispatcher
+				if !m.checkNodeEventLeadership(ev) {
 					return
 				}
 				// even though dispatcherChan is buffered, we don't want to
@@ -149,6 +264,10 @@ func (m *Manager) run() error {
 				select {
 				case dispatcherChan <- ev:
 				case <-m.stop:
+					return
+				}
+			case <-m.notifyCluster:
+				if !m.checkLeadership() {
 					return
 				}
 			case <-m.stop:
