@@ -65,10 +65,8 @@ func (f *fakeReconcilerClient) GetSwarmStack(idOrName string) (interfaces.SwarmS
 		return interfaces.SwarmStack{}, notFound
 	}
 
-	// if you add the "makemefail" label to a stack, attempting to get it will
-	// fail
-	if _, ok := stack.Spec.Annotations.Labels["makemefail"]; ok {
-		return interfaces.SwarmStack{}, unavailable
+	if err := causeAnError("get", stack.Spec.Annotations.Labels); err != nil {
+		return interfaces.SwarmStack{}, err
 	}
 	return *stack, nil
 }
@@ -122,19 +120,18 @@ func (f *fakeReconcilerClient) GetService(idOrName string, _ bool) (swarm.Servic
 		return swarm.Service{}, notFound
 	}
 
-	if _, ok := service.Spec.Annotations.Labels["makemefail"]; ok {
+	if err := causeAnError("get", service.Spec.Annotations.Labels); err != nil {
 		return swarm.Service{}, unavailable
 	}
 	return *service, nil
 }
 
-// CreateService creates a swarm service. Including the label "makemefail" in
-// the spec will cause creation to fail.
+// CreateService creates a swarm service.
 func (f *fakeReconcilerClient) CreateService(spec swarm.ServiceSpec, _ string, _ bool) (*dockerTypes.ServiceCreateResponse, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
-	if _, ok := spec.Annotations.Labels["makemefail"]; ok {
+	if err := causeAnError("create", spec.Annotations.Labels); err != nil {
 		return nil, invalidArg
 	}
 
@@ -198,6 +195,10 @@ func (f *fakeReconcilerClient) RemoveService(idOrName string) error {
 		return notFound
 	}
 
+	if err := causeAnError("remove", service.Spec.Annotations.Labels); err != nil {
+		return err
+	}
+
 	delete(f.services, service.ID)
 	delete(f.servicesByName, service.Spec.Annotations.Name)
 
@@ -252,4 +253,33 @@ func (f *fakeReconcilerClient) newID(objType string) string {
 	index := f.totallyRandomIDBase
 	f.totallyRandomIDBase++
 	return fmt.Sprintf("id_%s_%v", objType, index)
+}
+
+// causeAnError is a helper function to cause errors based on object labels. in
+// testing, we may want to simulate a wide variety of error conditions on an
+// object. however, because this fake is so simple, errors like a timeout or a
+// race are hard to elicit in a straightforward way. in order to make that
+// easier, we are going to set a special "makemefail" label in the test, which
+// the reconciler production code doesn't care about, but which will instruct
+// the fakeReconcilerClient to fail in a specific way.
+//
+// the function takes 2 args: the operation type (create, update, or remove)
+// and the labels of the object, and returns an error if one is desired.
+func causeAnError(operation string, labels map[string]string) error {
+	failure, ok := labels["makemefail"]
+	if !ok {
+		return nil
+	}
+
+	switch failure {
+	case "unavailable":
+		// unavailable simulates an error where the client is unavailable for
+		// some reason
+		return unavailable
+	case "invalidarg":
+		// invalidarg simulates an error where some part of the spec is invalid
+		return invalidArg
+	}
+
+	return nil
 }

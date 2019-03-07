@@ -23,19 +23,25 @@ const (
 	stackName = "someNamewhocares"
 )
 
-// obj is just a tuple of 2 strings for use in the fakeObjectChangeNotifier
-type obj struct {
+// obj creates a new objTuple. this allows us to use short-form struct
+// initialization without tripping a linter error
+func obj(kind, id string) objTuple {
+	return objTuple{kind: kind, id: id}
+}
+
+// objTuple is just a tuple of 2 strings for use in the fakeObjectChangeNotifier
+type objTuple struct {
 	kind, id string
 }
 
 // fakeObjectChangeNotifier implements the ObjectChangeNotifier interface and
 // keeps track of which objects it was notified about and in what order.
 type fakeObjectChangeNotifier struct {
-	objects []obj
+	objects []objTuple
 }
 
 func (f *fakeObjectChangeNotifier) Notify(kind, id string) {
-	f.objects = append(f.objects, obj{kind, id})
+	f.objects = append(f.objects, obj(kind, id))
 }
 
 // ConsistOfServices is a matcher that verifies that a map of services contains
@@ -122,7 +128,7 @@ var _ = Describe("Reconciler", func() {
 		notifier = &fakeObjectChangeNotifier{}
 	})
 
-	JustBeforeEach(func() {
+	BeforeEach(func() {
 		// TODO(dperny): in this initial revision of tests, i'm building the
 		// reconciler by hand, because i don't yet have a mock client to use
 		r = newReconciler(notifier, f)
@@ -181,11 +187,16 @@ var _ = Describe("Reconciler", func() {
 			It("should return no error", func() {
 				Expect(err).ToNot(HaveOccurred())
 			})
+			It("should add a mapping of the service IDs to the stack", func() {
+				for id := range f.services {
+					Expect(r.stackResources[id]).To(Equal(stackID))
+				}
+			})
 			When("resource creation fails", func() {
 				BeforeEach(func() {
 					// add the label "makemefail" to a service spec, which will
 					// cause the fake to return an error
-					stackFixture.Spec.Services[0].Annotations.Labels["makemefail"] = ""
+					stackFixture.Spec.Services[0].Annotations.Labels["makemefail"] = "invalidarg"
 				})
 				It("should return an error", func() {
 					Expect(err).To(HaveOccurred())
@@ -212,7 +223,7 @@ var _ = Describe("Reconciler", func() {
 
 		When("a stack cannot be retrieved for other reasons", func() {
 			BeforeEach(func() {
-				stackFixture.Spec.Annotations.Labels["makemefail"] = "yeet"
+				stackFixture.Spec.Annotations.Labels["makemefail"] = "unavailable"
 			})
 			It("should return an error", func() {
 				Expect(err).To(HaveOccurred())
@@ -226,7 +237,7 @@ var _ = Describe("Reconciler", func() {
 				// get the service from the fakeReconcilerClient directly, so
 				// we get the pointer
 				service := f.services[resp.ID]
-				service.Spec.Annotations.Labels["makemefail"] = ""
+				service.Spec.Annotations.Labels["makemefail"] = "unavailable"
 			})
 		})
 
@@ -242,7 +253,7 @@ var _ = Describe("Reconciler", func() {
 			})
 
 			It("should notify the ObjectChangeNotifier that the service resources should be reconciled", func() {
-				Expect(notifier.objects).To(ConsistOf(obj{"service", serviceID}))
+				Expect(notifier.objects).To(ConsistOf(obj("service", serviceID)))
 			})
 
 			It("should still create all of the other service", func() {
@@ -250,6 +261,35 @@ var _ = Describe("Reconciler", func() {
 			})
 		})
 
+		When("a service with the stack label exists, but do not belong to a stack", func() {
+			// This case is when some service with the stack label has been
+			// created, but is not actually part of the stack spec. This might
+			// happen, for example, if the stack is updated to remove some
+			// service, but the reconciler is stopped before it can delete that
+			// service
+			var (
+				serviceID string
+			)
+
+			BeforeEach(func() {
+				resp, _ := f.CreateService(
+					swarm.ServiceSpec{
+						Annotations: swarm.Annotations{
+							Name: "doesnotbelong",
+							Labels: map[string]string{
+								interfaces.StackLabel: stackFixture.ID,
+							},
+						},
+					},
+					"", false,
+				)
+				serviceID = resp.ID
+			})
+
+			It("should notify the ObjectChangeNotifier of the service", func() {
+				Expect(notifier.objects).To(ConsistOf(obj("service", serviceID)))
+			})
+		})
 	})
 
 	Describe("deleting a stack", func() {
@@ -295,8 +335,8 @@ var _ = Describe("Reconciler", func() {
 		})
 		It("should notify the that all of the resources belonging to that stack should reconciled", func() {
 			Expect(notifier.objects).To(ConsistOf(
-				obj{"service", f.servicesByName["service1"]},
-				obj{"service", f.servicesByName["service3"]},
+				obj("service", f.servicesByName["service1"]),
+				obj("service", f.servicesByName["service3"]),
 			))
 		})
 	})
@@ -351,7 +391,7 @@ var _ = Describe("Reconciler", func() {
 					})
 				})
 
-				When("the resource does not match the stack definition", func() {
+				When("the service does not match the stack definition", func() {
 					BeforeEach(func() {
 						differentSpec := spec
 						// we have to make a new map for labels, because
@@ -406,9 +446,34 @@ var _ = Describe("Reconciler", func() {
 			})
 		})
 
-		PWhen("a service is deleted", func() {
-			// TODO(dperny): we can't handle this case yet.
-			It("should notify the ObjectChangeNotifier that the stack should be reconciled", func() {
+		When("a service is deleted", func() {
+			var (
+				err error
+			)
+			JustBeforeEach(func() {
+				err = r.Reconcile(events.ServiceEventType, "gone")
+			})
+			When("the service belonged to no stack", func() {
+				It("should return no error", func() {
+					Expect(err).ToNot(HaveOccurred())
+				})
+			})
+			When("the service belonged to a stack", func() {
+				BeforeEach(func() {
+					// Instead of going through the whole caching and deleting
+					// process, just go into the object and add this service to
+					// the cache
+					r.stackResources["gone"] = stackID
+				})
+				It("should notify the ObjectChangeNotifier that the stack should be reconciled", func() {
+					Expect(notifier.objects).To(ConsistOf(obj("stack", stackID)))
+				})
+				It("should return no error", func() {
+					Expect(err).ToNot(HaveOccurred())
+				})
+				It("should clean up the stackResources entry for the service", func() {
+					Expect(r.stackResources).ToNot(HaveKey("gone"))
+				})
 			})
 		})
 	})

@@ -59,6 +59,11 @@ type Reconciler interface {
 type reconciler struct {
 	notify notifier.ObjectChangeNotifier
 	cli    Client
+
+	// stackResources maps object IDs to the ID of the stack that those objects
+	// belong to. it is used to determine if a deleted object belongs to a
+	// stack
+	stackResources map[string]string
 }
 
 // New creates a new Reconciler object, which uses the provided
@@ -71,8 +76,9 @@ func New(notify notifier.ObjectChangeNotifier, cli Client) Reconciler {
 // raw object, for use internally, instead of the interface as used externally.
 func newReconciler(notify notifier.ObjectChangeNotifier, cli Client) *reconciler {
 	r := &reconciler{
-		notify: notify,
-		cli:    cli,
+		notify:         notify,
+		cli:            cli,
+		stackResources: map[string]string{},
 	}
 	return r
 }
@@ -111,15 +117,40 @@ func (r *reconciler) reconcileStack(id string) error {
 			// TODO(dperny): we don't cache service data right now, but we
 			// might want to do so later
 			logrus.Debugf("Unable to find existing service, creating service with spec %+v", spec)
-			_, err := r.cli.CreateService(spec, "", false)
+			resp, err := r.cli.CreateService(spec, "", false)
 			if err != nil {
 				return err
 			}
+			// when we create the service, add it to the mapping of stack
+			// resources. this ensures that if the resource is deleted
+			// immediately after, then we still have record of it
+			r.stackResources[resp.ID] = id
 		} else if err != nil {
 			return err
 		} else {
+			// add the service to the map of resources
+			r.stackResources[service.ID] = id
 			// if the service already exists, it should be reconciled after
 			// this, so notify
+			r.notify.Notify("service", service.ID)
+		}
+	}
+
+	// now that we've verified all services belonging to a stack exist, look
+	// for any services that say they belong to a stack but actually don't.
+	services, err := r.cli.GetServices(dockerTypes.ServiceListOptions{
+		Filters: stackLabelFilter(id),
+	})
+	if err != nil {
+		return err
+	}
+	for _, service := range services {
+		// check if the service belongs to a stack. if the service does not
+		// belong to any stack, notify that it needs to be reconciled. If the
+		// service for some reason belonged to a different stack entirely, then
+		// it would get caught when we reconciled that stack, so we don't need
+		// to handle that case here.
+		if _, ok := r.stackResources[service.ID]; !ok {
 			r.notify.Notify("service", service.ID)
 		}
 	}
@@ -149,12 +180,23 @@ func (r *reconciler) reconcileService(id string) error {
 		return nil
 	}
 
+	// there is a case that is possible, where the service has its StackLabel
+	// changed to a different stack. If this occurs, then the service will be
+	// deleted (because it does not belong to the stack it says it does) and
+	// then it will be recreated (because the service delete will trigger
+	// another pass of reconcileService, which will see that a service
+	// belonging to some stack has been deleted, and trigger reconciliation of
+	// that stack). we could fix that by checking here against
+	// r.stackResources, but testing that is kind of a pain so it has been
+	// punted on for this moment.
+
 	// now, get the stack itself.
 	// TODO(dperny): we may want to cache stacks so we don't have to do this
 	// lookup every time
 	stack, err := r.cli.GetSwarmStack(stackID)
 	// if the stack has been deleted, then the service must follow with it.
 	if errdefs.IsNotFound(err) {
+		delete(r.stackResources, id)
 		return r.cli.RemoveService(id)
 	}
 	// any other error means we can't reconcile this service right now
@@ -179,6 +221,7 @@ func (r *reconciler) reconcileService(id string) error {
 
 	// if there is no matching service spec, then we need to delete the service
 	if !found {
+		delete(r.stackResources, id)
 		return r.cli.RemoveService(id)
 	}
 
@@ -217,12 +260,16 @@ func (r *reconciler) deleteStack(id string) error {
 }
 
 func (r *reconciler) handleDeletedService(id string) error {
-	// TODO(dperny): implement
-	// TODO(dperny): events can contain labels, and so the initial event may
-	// contain a label with the stack ID. If that were the case, we could
-	// choose the stack the service belonged to and reconcile that stack.
-	// Otherwise, we have to cache what services belong to what stacks in order
-	// to handle deletes.
+	stackID, ok := r.stackResources[id]
+	if !ok {
+		return nil
+	}
+	// if the service belongs to a stack, but it has been deleted, reconcile
+	// the stack. This will either cause the service to be recreated if needed,
+	// or nothing will occur if not.
+	r.notify.Notify("stack", stackID)
+	// delete the mapping, it's done its job
+	delete(r.stackResources, id)
 	return nil
 }
 
