@@ -58,10 +58,13 @@ var _ = Describe("StackStore", func() {
 
 			// these are essentially the same stacks from marshal_test.go
 			stack = &types.Stack{
-				Metadata: types.Metadata{
-					Name: "someName",
-				},
 				Spec: types.StackSpec{
+					Metadata: types.Metadata{
+						Name: "someName",
+						Labels: map[string]string{
+							"key": "value",
+						},
+					},
 					Services: composetypes.Services{
 						{
 							Name: "bar",
@@ -75,6 +78,9 @@ var _ = Describe("StackStore", func() {
 				Spec: interfaces.SwarmStackSpec{
 					Annotations: swarm.Annotations{
 						Name: "someName",
+						Labels: map[string]string{
+							"key": "value",
+						},
 					},
 					Services: []swarm.ServiceSpec{
 						{
@@ -97,7 +103,8 @@ var _ = Describe("StackStore", func() {
 			stackResource = &swarmapi.Resource{
 				ID: "someID",
 				Annotations: swarmapi.Annotations{
-					Name: "someName",
+					Name:   swarmStack.Spec.Annotations.Name,
+					Labels: swarmStack.Spec.Annotations.Labels,
 				},
 				Meta: swarmapi.Meta{
 					CreatedAt: timeProto,
@@ -114,11 +121,9 @@ var _ = Describe("StackStore", func() {
 			mockClient.EXPECT().CreateResource(
 				context.TODO(),
 				&swarmapi.CreateResourceRequest{
-					Annotations: &swarmapi.Annotations{
-						Name: "someName",
-					},
-					Kind:    StackResourceKind,
-					Payload: stackResource.Payload,
+					Annotations: &stackResource.Annotations,
+					Kind:        StackResourceKind,
+					Payload:     stackResource.Payload,
 				},
 			).Return(
 				&swarmapi.CreateResourceResponse{
@@ -153,10 +158,13 @@ var _ = Describe("StackStore", func() {
 				Version: types.Version{
 					Index: stackResource.Meta.Version.Index,
 				},
-				Metadata: types.Metadata{
-					Name: "someName",
-				},
 				Spec: types.StackSpec{
+					Metadata: types.Metadata{
+						Name: "someName",
+						Labels: map[string]string{
+							"key": "value",
+						},
+					},
 					Services: composetypes.Services{
 						{
 							// change bar -> baz
@@ -179,6 +187,9 @@ var _ = Describe("StackStore", func() {
 				Spec: interfaces.SwarmStackSpec{
 					Annotations: swarm.Annotations{
 						Name: "someName",
+						Labels: map[string]string{
+							"key": "value",
+						},
 					},
 					Services: []swarm.ServiceSpec{
 						{
@@ -211,6 +222,7 @@ var _ = Describe("StackStore", func() {
 				&swarmapi.UpdateResourceRequest{
 					ResourceID:      stackResource.ID,
 					ResourceVersion: &stackResource.Meta.Version,
+					Annotations:     &stackResource.Annotations,
 					Payload:         newAny,
 				},
 			).Return(
@@ -247,7 +259,6 @@ var _ = Describe("StackStore", func() {
 				Version: types.Version{
 					Index: stackResource.Meta.Version.Index,
 				},
-				Metadata:     stack.Metadata,
 				Orchestrator: stack.Orchestrator,
 				Spec:         stack.Spec,
 			}
@@ -307,10 +318,14 @@ var _ = Describe("StackStore", func() {
 			BeforeEach(func() {
 				for i := 0; i < numListedResources; i++ {
 					st := types.Stack{
-						Metadata: types.Metadata{
-							Name: fmt.Sprintf("stack_%v", i),
-						},
 						Spec: types.StackSpec{
+							Metadata: types.Metadata{
+								Name: fmt.Sprintf("stack_%v", i),
+
+								Labels: map[string]string{
+									"key": "value",
+								},
+							},
 							Services: composetypes.Services{
 								{
 									Name: fmt.Sprintf("svc_%v", i),
@@ -321,7 +336,8 @@ var _ = Describe("StackStore", func() {
 					sst := interfaces.SwarmStack{
 						Spec: interfaces.SwarmStackSpec{
 							Annotations: swarm.Annotations{
-								Name: st.Metadata.Name,
+								Name:   st.Spec.Metadata.Name,
+								Labels: st.Spec.Metadata.Labels,
 							},
 							Services: []swarm.ServiceSpec{
 								{
@@ -347,7 +363,8 @@ var _ = Describe("StackStore", func() {
 							UpdatedAt: timeProto,
 						},
 						Annotations: swarmapi.Annotations{
-							Name: st.Metadata.Name,
+							Name:   st.Spec.Metadata.Name,
+							Labels: st.Spec.Metadata.Labels,
 						},
 						Kind:    StackResourceKind,
 						Payload: any,

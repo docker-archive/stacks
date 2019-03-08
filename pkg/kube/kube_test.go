@@ -64,10 +64,10 @@ func TestKubeStacksBackendStackCreate(t *testing.T) {
 	k.EXPECT().Create(gomock.Any()).Return(nil, nil)
 
 	create := types.StackCreate{
-		Metadata: types.Metadata{
-			Name: "testname",
-		},
 		Spec: types.StackSpec{
+			Metadata: types.Metadata{
+				Name: "testname",
+			},
 			Collection: "namespace1",
 		},
 	}
@@ -93,6 +93,9 @@ func TestKubeStacksBackendStackInspect(t *testing.T) {
 			Name:            "testname",
 			Namespace:       "namespace1",
 			ResourceVersion: "42",
+			Annotations: map[string]string{
+				"key": "value",
+			},
 		},
 		Spec: &v1beta2.StackSpec{
 			Services: []v1beta2.ServiceConfig{
@@ -105,9 +108,10 @@ func TestKubeStacksBackendStackInspect(t *testing.T) {
 
 	stack, err := b.StackInspect(context.TODO(), "kube_namespace1_testname")
 	require.NoError(err)
-	require.Equal(stack.Metadata.Name, "testname")
 	require.Equal(stack.Version.Index, uint64(42))
 	require.Equal(stack.Spec.Collection, "namespace1")
+	require.Equal(stack.Spec.Metadata.Name, "testname")
+	require.Equal(stack.Spec.Metadata.Labels["key"], "value")
 	require.Len(stack.Spec.Services, 1)
 	require.Equal(stack.Spec.Services[0].Image, "service1")
 }
@@ -241,7 +245,7 @@ func TestKubeStacksBackendStackList(t *testing.T) {
 	}
 
 	for _, stack := range stacks {
-		require.Equal(stack.Metadata.Name, "testname")
+		require.Equal(stack.Spec.Metadata.Name, "testname")
 		targetImage, ok := found[stack.Spec.Collection]
 		require.True(ok)
 		require.Equal(stack.Spec.Services[0].Image, targetImage)

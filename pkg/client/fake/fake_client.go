@@ -54,10 +54,7 @@ func (c *StackClient) StackCreate(_ context.Context, stack types.StackCreate, _ 
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	newStack := types.Stack{
-		ID: fmt.Sprintf("%d", c.idx),
-		Metadata: types.Metadata{
-			Name: stack.Metadata.Name,
-		},
+		ID:   fmt.Sprintf("%d", c.idx),
 		Spec: stack.Spec,
 	}
 	c.idx++

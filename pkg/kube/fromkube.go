@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/docker/compose-on-kubernetes/api/compose/v1beta2"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	composetypes "github.com/docker/stacks/pkg/compose/types"
 	"github.com/docker/stacks/pkg/types"
@@ -20,11 +21,8 @@ func ConvertFromKubeStack(kubeStack *v1beta2.Stack) (types.Stack, error) {
 	namespace := kubeStack.ObjectMeta.Namespace
 	name := kubeStack.ObjectMeta.Name
 
-	stackSpec := convertFromKubeStackSpec(kubeStack.Spec, namespace)
+	stackSpec := convertFromKubeStackSpec(kubeStack.Spec, kubeStack.ObjectMeta)
 	res := types.Stack{
-		Metadata: types.Metadata{
-			Name: name,
-		},
 		ID:           getKubeStackID(namespace, name),
 		Orchestrator: types.OrchestratorKubernetes,
 		Spec:         stackSpec,
@@ -57,9 +55,15 @@ func ConvertFromKubeStacks(kubeStacks []v1beta2.Stack) ([]types.Stack, error) {
 	return res, nil
 }
 
-func convertFromKubeStackSpec(s *v1beta2.StackSpec, namespace string) types.StackSpec {
+func convertFromKubeStackSpec(s *v1beta2.StackSpec, objectMeta metav1.ObjectMeta) types.StackSpec {
 	return types.StackSpec{
-		Collection: namespace,
+		Metadata: types.Metadata{
+			Name: objectMeta.Name,
+			// Stack Labels are equal to Kubernetes Annotations
+			Labels: objectMeta.Annotations,
+		},
+
+		Collection: objectMeta.Namespace,
 		Configs:    convertFromKubeConfigs(s.Configs),
 		Secrets:    convertFromKubeSecrets(s.Secrets),
 		Services:   convertFromKubeServices(s.Services),

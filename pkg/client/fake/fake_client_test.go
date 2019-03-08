@@ -2,22 +2,25 @@ package fake
 
 import (
 	"context"
-	"reflect"
 	"testing"
 
 	"github.com/docker/docker/errdefs"
 	"github.com/stretchr/testify/require"
+	"gotest.tools/assert"
 
 	composeTypes "github.com/docker/stacks/pkg/compose/types"
 	"github.com/docker/stacks/pkg/types"
 )
 
 var stackCreate = types.StackCreate{
-	Metadata: types.Metadata{
-		Name: "teststack",
-	},
 	Orchestrator: types.OrchestratorSwarm,
 	Spec: types.StackSpec{
+		Metadata: types.Metadata{
+			Name: "teststack",
+			Labels: map[string]string{
+				"key": "value",
+			},
+		},
 		Services: []composeTypes.ServiceConfig{
 			{
 				Name:  "service1",
@@ -68,14 +71,12 @@ func TestFakeStackClientCRUD(t *testing.T) {
 	require.NoError(err)
 	require.Len(stacks, 1)
 	require.Equal(stacks[0].Spec, stackCreate.Spec)
-	require.Equal(stacks[0].Metadata.Name, stackCreate.Metadata.Name)
 	require.Equal(stacks[0].ID, resp.ID)
 
 	// Inspect
 	stack, err := c.StackInspect(ctx, resp.ID)
 	require.NoError(err)
 	require.Equal(stack.Spec, stackCreate.Spec)
-	require.Equal(stack.Metadata.Name, stackCreate.Metadata.Name)
 	require.Equal(stack.ID, resp.ID)
 
 	// Update
@@ -84,7 +85,7 @@ func TestFakeStackClientCRUD(t *testing.T) {
 	require.NoError(c.StackUpdate(ctx, resp.ID, stack.Version, stackSpec, types.StackUpdateOptions{}))
 	stack, err = c.StackInspect(ctx, resp.ID)
 	require.NoError(err)
-	require.True(reflect.DeepEqual(stackSpec, stack.Spec))
+	assert.DeepEqual(t, stackSpec, stack.Spec)
 
 	// Delete
 	err = c.StackDelete(ctx, resp.ID)

@@ -6,8 +6,9 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
-	"github.com/stretchr/testify/assert"
+	tassert "github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gotest.tools/assert"
 
 	dockerTypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/swarm"
@@ -27,10 +28,10 @@ func TestStacksBackendUpdateOutOfSequence(t *testing.T) {
 
 	// Create a stack with a valid StackCreate
 	resp, err := b.CreateStack(types.StackCreate{
-		Metadata: types.Metadata{
-			Name: "teststack",
-		},
 		Spec: types.StackSpec{
+			Metadata: types.Metadata{
+				Name: "teststack",
+			},
 			Collection: "test1",
 		},
 		Orchestrator: types.OrchestratorSwarm,
@@ -190,6 +191,12 @@ func TestStackBackendSwarmSimpleConversion(t *testing.T) {
 
 	// Create a stack, and retrieve the stored SwarmStack
 	stackSpec := types.StackSpec{
+		Metadata: types.Metadata{
+			Name: "teststack",
+			Labels: map[string]string{
+				"key": "value",
+			},
+		},
 		Services: []composeTypes.ServiceConfig{
 			{
 				Name:       "test_service",
@@ -284,9 +291,6 @@ func TestStackBackendSwarmSimpleConversion(t *testing.T) {
 	}, nil)
 
 	resp, err := b.CreateStack(types.StackCreate{
-		Metadata: types.Metadata{
-			Name: "teststack",
-		},
 		Orchestrator: types.OrchestratorSwarm,
 		Spec:         stackSpec,
 	})
@@ -299,7 +303,7 @@ func TestStackBackendSwarmSimpleConversion(t *testing.T) {
 	stack, err := b.GetStack(resp.ID)
 	require.NoError(err)
 	require.Equal(stack.ID, resp.ID)
-	require.True(reflect.DeepEqual(stack.Spec, stackSpec))
+	assert.DeepEqual(t, stack.Spec, stackSpec)
 
 	assertStackEquality(t, swarmStack, stack)
 }
@@ -308,8 +312,9 @@ func assertStackEquality(t *testing.T, swarmStack interfaces.SwarmStack, stack t
 	require := require.New(t)
 
 	require.Equal(swarmStack.ID, stack.ID)
-
 	require.Equal(len(swarmStack.Spec.Services), len(stack.Spec.Services))
+
+	assert.DeepEqual(t, swarmStack.Spec.Annotations.Labels, stack.Spec.Metadata.Labels)
 
 	// External secrets should not be populated as part of the SwarmStack. They
 	// are expected to be created independently.
@@ -374,7 +379,7 @@ func assertStackEquality(t *testing.T, swarmStack interfaces.SwarmStack, stack t
 }
 
 func assertServiceEquality(t *testing.T, swarmServiceSpec swarm.ServiceSpec, stackServiceSpec composeTypes.ServiceConfig) {
-	assert := assert.New(t)
+	assert := tassert.New(t)
 	assert.Equal(swarmServiceSpec.Annotations.Name, stackServiceSpec.Name)
 	assert.Equal(swarmServiceSpec.TaskTemplate.ContainerSpec.Image, stackServiceSpec.Image)
 	assert.Equal(swarmServiceSpec.TaskTemplate.ContainerSpec.Hostname, stackServiceSpec.Hostname)
@@ -386,21 +391,21 @@ func assertServiceEquality(t *testing.T, swarmServiceSpec swarm.ServiceSpec, sta
 }
 
 func assertSecretEquality(t *testing.T, swarmSecretSpec swarm.SecretSpec, stackSecretSpec composeTypes.SecretConfig) {
-	assert := assert.New(t)
+	assert := tassert.New(t)
 
 	assert.Equal(swarmSecretSpec.Name, stackSecretSpec.Name)
 	assert.Equal(swarmSecretSpec.Labels, stackSecretSpec.Labels)
 }
 
 func assertConfigEquality(t *testing.T, swarmConfigSpec swarm.ConfigSpec, stackConfigSpec composeTypes.ConfigObjConfig) {
-	assert := assert.New(t)
+	assert := tassert.New(t)
 
 	assert.Equal(swarmConfigSpec.Name, stackConfigSpec.Name)
 	assert.Equal(swarmConfigSpec.Labels, stackConfigSpec.Labels)
 }
 
 func assertNetworkEquality(t *testing.T, swarmNetworkSpec dockerTypes.NetworkCreate, stackNetworkSpec composeTypes.NetworkConfig) {
-	assert := assert.New(t)
+	assert := tassert.New(t)
 
 	assert.Equal(swarmNetworkSpec.Driver, stackNetworkSpec.Driver)
 	assert.Equal(swarmNetworkSpec.Options, stackNetworkSpec.DriverOpts)

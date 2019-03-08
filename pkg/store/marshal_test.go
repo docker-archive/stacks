@@ -32,13 +32,16 @@ func TestMarshalUnmarshal(t *testing.T) {
 	// not JSON marshalling. just add some canned data
 	stack := &types.Stack{
 		ID: "someID",
-		Metadata: types.Metadata{
-			Name: "someName",
-		},
 		Version: types.Version{
 			Index: 1,
 		},
 		Spec: types.StackSpec{
+			Metadata: types.Metadata{
+				Name: "someName",
+				Labels: map[string]string{
+					"key": "value",
+				},
+			},
 			Services: composetypes.Services{
 				{
 					Name: "bar",
@@ -60,6 +63,9 @@ func TestMarshalUnmarshal(t *testing.T) {
 		Spec: interfaces.SwarmStackSpec{
 			Annotations: swarm.Annotations{
 				Name: "someName",
+				Labels: map[string]string{
+					"key": "value",
+				},
 			},
 			Services: []swarm.ServiceSpec{
 				{

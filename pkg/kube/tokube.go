@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/docker/compose-on-kubernetes/api/compose/v1beta2"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	composetypes "github.com/docker/stacks/pkg/compose/types"
 	"github.com/docker/stacks/pkg/types"
@@ -27,12 +28,23 @@ const (
 	swarmLabelPrefix = "node.labels."
 )
 
-// FromStackSpec converts a StackSpec to a v1beta2.StackSpec.
-func FromStackSpec(spec types.StackSpec) *v1beta2.StackSpec {
-	return &v1beta2.StackSpec{
-		Services: fromComposeServices(spec.Services),
-		Secrets:  fromComposeSecrets(spec.Secrets),
-		Configs:  fromComposeConfigs(spec.Configs),
+// FromStackSpec converts a StackSpec to a v1beta2.Stack
+func FromStackSpec(spec types.StackSpec) *v1beta2.Stack {
+	namespace := spec.Collection
+	if namespace == "" {
+		namespace = "default"
+	}
+	return &v1beta2.Stack{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        spec.Metadata.Name,
+			Namespace:   namespace,
+			Annotations: spec.Metadata.Labels,
+		},
+		Spec: &v1beta2.StackSpec{
+			Services: fromComposeServices(spec.Services),
+			Secrets:  fromComposeSecrets(spec.Secrets),
+			Configs:  fromComposeConfigs(spec.Configs),
+		},
 	}
 }
 

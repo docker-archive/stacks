@@ -91,27 +91,15 @@ func (c *StacksBackend) ParseComposeInput(_ context.Context, input types.Compose
 
 // StackCreate creates a stack.
 func (c *StacksBackend) StackCreate(_ context.Context, create types.StackCreate, _ types.StackCreateOptions) (types.StackCreateResponse, error) {
-	namespace := create.Spec.Collection
-	if namespace == "" {
-		namespace = "default"
-	}
+	kubeStack := FromStackSpec(create.Spec)
 
-	kubeSpec := FromStackSpec(create.Spec)
-	kubeStack := &v1beta2.Stack{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      create.Metadata.Name,
-			Namespace: namespace,
-		},
-		Spec: kubeSpec,
-	}
-
-	_, err := c.composeClient.Stacks(namespace).Create(kubeStack)
+	_, err := c.composeClient.Stacks(kubeStack.ObjectMeta.Namespace).Create(kubeStack)
 	if err != nil {
 		return types.StackCreateResponse{}, err
 	}
 
 	return types.StackCreateResponse{
-		ID: getKubeStackID(namespace, create.Metadata.Name),
+		ID: getKubeStackID(create.Spec.Collection, create.Spec.Metadata.Name),
 	}, nil
 }
 
@@ -173,15 +161,8 @@ func (c *StacksBackend) StackUpdate(_ context.Context, id string, version types.
 		return errNotFound
 	}
 
-	kubeSpec := FromStackSpec(spec)
-	kubeStack := &v1beta2.Stack{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:            name,
-			Namespace:       namespace,
-			ResourceVersion: fmt.Sprintf("%d", version.Index),
-		},
-		Spec: kubeSpec,
-	}
+	kubeStack := FromStackSpec(spec)
+	kubeStack.ObjectMeta.ResourceVersion = fmt.Sprintf("%d", version.Index)
 
 	patchBytes, err := json.Marshal(kubeStack)
 	if err != nil {

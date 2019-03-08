@@ -23,6 +23,12 @@ var (
 	parallelism   uint64 = 3
 
 	testStackSpec = types.StackSpec{
+		Metadata: types.Metadata{
+			Name: "test-stack",
+			Labels: map[string]string{
+				"stackkey": "value",
+			},
+		},
 		Collection: "namespace1",
 		Services: []composetypes.ServiceConfig{
 			{
@@ -106,7 +112,7 @@ var (
 					External: true,
 				},
 				Labels: map[string]string{
-					"key": "value",
+					"secretkey": "value",
 				},
 			},
 		},
@@ -117,7 +123,7 @@ var (
 					External: true,
 				},
 				Labels: map[string]string{
-					"key": "value",
+					"configkey": "value",
 				},
 			},
 			"config2": {
@@ -221,7 +227,7 @@ var (
 					External: true,
 				},
 				Labels: map[string]string{
-					"key": "value",
+					"secretkey": "value",
 				},
 			},
 		},
@@ -232,7 +238,7 @@ var (
 					External: true,
 				},
 				Labels: map[string]string{
-					"key": "value",
+					"configkey": "value",
 				},
 			},
 			"config2": {
@@ -243,17 +249,17 @@ var (
 
 	testKubeStack = v1beta2.Stack{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            "test-stack",
-			Namespace:       "namespace1",
+			Name:      "test-stack",
+			Namespace: "namespace1",
+			Annotations: map[string]string{
+				"stackkey": "value",
+			},
 			ResourceVersion: "16",
 		},
 		Spec: &testKubeStackSpec,
 	}
 
 	testStack = types.Stack{
-		Metadata: types.Metadata{
-			Name: "test-stack",
-		},
 		ID:   "kube_namespace1_test-stack",
 		Spec: testStackSpec,
 		Version: types.Version{
@@ -265,7 +271,9 @@ var (
 
 func TestFromStackSpec(t *testing.T) {
 	resp := FromStackSpec(testStackSpec)
-	assert.DeepEqual(t, *resp, testKubeStackSpec)
+	// Hardcode the version as we are not actually aware of it just from the stack spec
+	resp.ObjectMeta.ResourceVersion = "16"
+	assert.DeepEqual(t, *resp, testKubeStack)
 }
 
 func TestConvertFromKubeStack(t *testing.T) {

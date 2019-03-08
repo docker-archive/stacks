@@ -2,11 +2,11 @@ package router
 
 import (
 	"context"
-	"reflect"
 	"testing"
 
 	"github.com/docker/docker/errdefs"
 	"github.com/stretchr/testify/require"
+	"gotest.tools/assert"
 
 	"github.com/docker/stacks/pkg/client/fake"
 	composeTypes "github.com/docker/stacks/pkg/compose/types"
@@ -14,6 +14,9 @@ import (
 )
 
 var baseSpec = types.StackSpec{
+	Metadata: types.Metadata{
+		Name: "swarm-stack",
+	},
 	Services: []composeTypes.ServiceConfig{
 		{
 			Name:  "testservice",
@@ -23,17 +26,11 @@ var baseSpec = types.StackSpec{
 }
 
 var swarmStackCreate = types.StackCreate{
-	Metadata: types.Metadata{
-		Name: "swarm-stack",
-	},
 	Orchestrator: types.OrchestratorSwarm,
 	Spec:         baseSpec,
 }
 
 var kubeStackCreate = types.StackCreate{
-	Metadata: types.Metadata{
-		Name: "kube-stack",
-	},
 	Orchestrator: types.OrchestratorKubernetes,
 	Spec:         baseSpec,
 }
@@ -103,16 +100,19 @@ func TestRouterMultipleBackendsCRD(t *testing.T) {
 	// Ensure it's created via the router API.
 	stack, err := router.StackInspect(ctx, swarmResp.ID)
 	require.NoError(err)
-	requireMatchesCreate(t, stack, swarmStackCreate, swarmResp.ID)
+	assert.DeepEqual(t, stack.Spec, swarmStackCreate.Spec)
+	require.Equal(stack.ID, swarmResp.ID)
 
 	stacks, err := router.StackList(ctx, types.StackListOptions{})
 	require.NoError(err)
-	requireMatchesCreate(t, stacks[0], swarmStackCreate, swarmResp.ID)
+	assert.DeepEqual(t, stacks[0].Spec, swarmStackCreate.Spec)
+	require.Equal(stacks[0].ID, swarmResp.ID)
 
 	// Ensure the swarm stack only shows up on the swarm backend.
 	stack, err = swarmBackend.StackInspect(ctx, swarmResp.ID)
 	require.NoError(err)
-	requireMatchesCreate(t, stack, swarmStackCreate, swarmResp.ID)
+	assert.DeepEqual(t, stack.Spec, swarmStackCreate.Spec)
+	require.Equal(stacks[0].ID, swarmResp.ID)
 
 	stack, err = kubeBackend.StackInspect(ctx, swarmResp.ID)
 	require.Error(err)
@@ -127,7 +127,8 @@ func TestRouterMultipleBackendsCRD(t *testing.T) {
 	// Ensure the kube stack only shows up on the kube backend.
 	stack, err = kubeBackend.StackInspect(ctx, kubeResp.ID)
 	require.NoError(err)
-	requireMatchesCreate(t, stack, kubeStackCreate, kubeResp.ID)
+	assert.DeepEqual(t, stack.Spec, kubeStackCreate.Spec)
+	require.Equal(stack.ID, kubeResp.ID)
 
 	stack, err = swarmBackend.StackInspect(ctx, kubeResp.ID)
 	require.Error(err)
@@ -147,7 +148,7 @@ func TestRouterMultipleBackendsCRD(t *testing.T) {
 	for _, stack := range stacks {
 		create, ok := looking[stack.ID]
 		require.True(ok)
-		requireMatchesCreate(t, stack, create, stack.ID)
+		assert.DeepEqual(t, stack.Spec, create.Spec)
 		delete(looking, stack.ID)
 	}
 	require.Empty(looking)
@@ -159,7 +160,7 @@ func TestRouterMultipleBackendsCRD(t *testing.T) {
 	stacks, err = router.StackList(ctx, types.StackListOptions{})
 	require.NoError(err)
 	require.Len(stacks, 1)
-	requireMatchesCreate(t, stacks[0], swarmStackCreate, swarmResp.ID)
+	require.Equal(stacks[0].ID, swarmResp.ID)
 
 	// The stack does not exist on any backend at this point
 	stack, err = router.StackInspect(ctx, kubeResp.ID)
@@ -176,10 +177,4 @@ func TestRouterMultipleBackendsCRD(t *testing.T) {
 	require.Error(err)
 	require.True(errdefs.IsNotFound(err))
 	require.Empty(stack)
-}
-
-func requireMatchesCreate(t *testing.T, stack types.Stack, create types.StackCreate, id string) {
-	require.True(t, reflect.DeepEqual(stack.Spec, create.Spec))
-	require.Equal(t, stack.Metadata.Name, create.Metadata.Name)
-	require.Equal(t, stack.ID, id)
 }
