@@ -7,7 +7,6 @@ applications.
 The code is designed to be used standalone, or be vendored into other
 projects.
 
-This repository is solely maintained by Docker, Inc.
 
 ### Standalone Runtime
 
@@ -40,7 +39,6 @@ can run the e2e tests with something along the following lines:
 docker run --net host -e DOCKER_HOST=tcp://localhost:8080 dockereng/stack-e2e:latest
 ```
 Additional flags can be passed as command arguments - try `-help` for usage.
-
 
 ## License
 docker/stacks is licensed under the Apache License, Version 2.0. See
