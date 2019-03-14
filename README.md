@@ -40,7 +40,6 @@ docker run --net host -e DOCKER_HOST=tcp://localhost:8080 dockereng/stack-e2e:la
 ```
 Additional flags can be passed as command arguments - try `-help` for usage.
 
-
 ## License
 docker/stacks is licensed under the Apache License, Version 2.0. See
 [LICENSE](https://github.com/docker/stacks/blob/master/LICENSE) for the full
