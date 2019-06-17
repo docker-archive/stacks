@@ -18,7 +18,6 @@ import (
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
 
-	"github.com/docker/stacks/pkg/compose/loader"
 	"github.com/docker/stacks/pkg/types"
 )
 
@@ -81,12 +80,6 @@ func parseKubeStackID(id string) (string, string, error) {
 	name := parts[2]
 
 	return namespace, name, nil
-}
-
-// ParseComposeInput is a passthrough to the actual loader
-// implementation.
-func (c *StacksBackend) ParseComposeInput(_ context.Context, input types.ComposeInput) (*types.StackCreate, error) {
-	return loader.ParseComposeInput(input)
 }
 
 // StackCreate creates a stack.

@@ -101,16 +101,16 @@ var _ = Describe("Reconciler", func() {
 		// Reconciler
 		notifier *fakeObjectChangeNotifier
 
-		stackFixture *interfaces.SwarmStack
+		stackFixture *interfaces.Stack
 	)
 
 	BeforeEach(func() {
 		// first things first, create a fakeReconcilerClient
 		f = newFakeReconcilerClient()
 
-		stackFixture = &interfaces.SwarmStack{
+		stackFixture = &interfaces.Stack{
 			ID: stackID,
-			Spec: interfaces.SwarmStackSpec{
+			Spec: interfaces.StackSpec{
 				Annotations: swarm.Annotations{
 					Name:   stackName,
 					Labels: map[string]string{},

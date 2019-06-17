@@ -30,13 +30,6 @@ var stackCreate = types.StackCreate{
 	},
 }
 
-func TestFakeStackClientParseComposeInput(t *testing.T) {
-	c := NewStackClient()
-	stackCreate, err := c.ParseComposeInput(context.TODO(), types.ComposeInput{})
-	require.NoError(t, err)
-	require.Nil(t, stackCreate)
-}
-
 func TestFakeStackClientUpdateOutOfSequence(t *testing.T) {
 	ctx := context.Background()
 	require := require.New(t)

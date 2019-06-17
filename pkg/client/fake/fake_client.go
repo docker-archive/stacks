@@ -7,7 +7,6 @@ import (
 
 	"github.com/docker/docker/errdefs"
 
-	"github.com/docker/stacks/pkg/compose/loader"
 	"github.com/docker/stacks/pkg/types"
 )
 
@@ -42,11 +41,6 @@ func NewStackClient(optsFunc ...StackOptionFunc) *StackClient {
 	}
 
 	return c
-}
-
-// ParseComposeInput is a passthrough to the actual loader implementation.
-func (c *StackClient) ParseComposeInput(_ context.Context, input types.ComposeInput) (*types.StackCreate, error) {
-	return loader.ParseComposeInput(input)
 }
 
 // StackCreate creates a new stack.

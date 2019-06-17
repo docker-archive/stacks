@@ -29,7 +29,7 @@ type fakeReconcilerClient struct {
 	totallyRandomIDBase int
 
 	// maps id -> stack
-	stacks map[string]*interfaces.SwarmStack
+	stacks map[string]*interfaces.Stack
 	// maps name -> id
 	stacksByName map[string]string
 
@@ -46,15 +46,15 @@ var (
 
 func newFakeReconcilerClient() *fakeReconcilerClient {
 	return &fakeReconcilerClient{
-		stacks:         map[string]*interfaces.SwarmStack{},
+		stacks:         map[string]*interfaces.Stack{},
 		stacksByName:   map[string]string{},
 		services:       map[string]*swarm.Service{},
 		servicesByName: map[string]string{},
 	}
 }
 
-// GetSwarmStack gets a SwarmStack
-func (f *fakeReconcilerClient) GetSwarmStack(idOrName string) (interfaces.SwarmStack, error) {
+// GetStack gets a Stack
+func (f *fakeReconcilerClient) GetStack(idOrName string) (interfaces.Stack, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
@@ -62,11 +62,11 @@ func (f *fakeReconcilerClient) GetSwarmStack(idOrName string) (interfaces.SwarmS
 
 	stack, ok := f.stacks[id]
 	if !ok {
-		return interfaces.SwarmStack{}, notFound
+		return interfaces.Stack{}, notFound
 	}
 
 	if err := causeAnError("get", stack.Spec.Annotations.Labels); err != nil {
-		return interfaces.SwarmStack{}, err
+		return interfaces.Stack{}, err
 	}
 	return *stack, nil
 }

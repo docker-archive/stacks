@@ -12,21 +12,22 @@ const (
 	StackLabel = "com.docker.stacks.stack_id"
 )
 
-// SwarmStack represents a Stack with all of its elements converted to Engine
+// Stack represents a Stack with all of its elements converted to Engine
 // API types.
-// NOTE: SwarmStack is only used internally for reconciliation of Swarm
+// NOTE: Stack is only used internally for reconciliation of Swarm
 // stacks and is never exposed via the API.
-type SwarmStack struct {
-	ID   string
-	Meta swarm.Meta
-	Spec SwarmStackSpec
+type Stack struct {
+	Version swarm.Version
+	ID      string
+	Meta    swarm.Meta
+	Spec    StackSpec
 }
 
-// SwarmStackSpec represents a StackSpec with all of its elements converted to
+// StackSpec represents a StackSpec with all of its elements converted to
 // Engine API types.
-// NOTE: SwarmStackSpec is only used internally for reconciliation of
+// NOTE: StackSpec is only used internally for reconciliation of
 // Swarm stacks and is never exposed via the API.
-type SwarmStackSpec struct {
+type StackSpec struct {
 	Annotations swarm.Annotations
 	Services    []swarm.ServiceSpec
 	// Networks is a map of name -> types.NetworkCreate. It's like this because
@@ -35,6 +36,6 @@ type SwarmStackSpec struct {
 	Networks map[string]types.NetworkCreate
 	Secrets  []swarm.SecretSpec
 	Configs  []swarm.ConfigSpec
-	// there is no "Volumes" in a SwarmStackSpec -- Swarm has no concept of
+	// There are no "Volumes" in a StackSpec -- Swarm has no concept of
 	// volumes
 }

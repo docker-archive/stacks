@@ -9,7 +9,6 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/docker/stacks/pkg/client"
-	"github.com/docker/stacks/pkg/compose/loader"
 	"github.com/docker/stacks/pkg/types"
 )
 
@@ -115,12 +114,6 @@ func (s *StacksRouter) getStack(ctx context.Context, id string) (stackPair, erro
 	default:
 		return stackPair{}, fmt.Errorf("multiple instances of the requested stack detected across backends")
 	}
-}
-
-// ParseComposeInput does not hold any orchestrator-specific behavior, so it
-// can be implemented entirely in the router.
-func (s *StacksRouter) ParseComposeInput(_ context.Context, input types.ComposeInput) (*types.StackCreate, error) {
-	return loader.ParseComposeInput(input)
 }
 
 // StackCreate creates a new stack.

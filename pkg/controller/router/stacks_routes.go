@@ -13,7 +13,7 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/sirupsen/logrus"
 
-	"github.com/docker/stacks/pkg/types"
+	"github.com/docker/stacks/pkg/interfaces"
 )
 
 func (sr *stacksRouter) getStacks(_ context.Context, w http.ResponseWriter, _ *http.Request, _ map[string]string) error {
@@ -27,21 +27,21 @@ func (sr *stacksRouter) getStacks(_ context.Context, w http.ResponseWriter, _ *h
 }
 
 func (sr *stacksRouter) createStack(_ context.Context, w http.ResponseWriter, r *http.Request, _ map[string]string) error {
-	var stackCreate types.StackCreate
-	if err := json.NewDecoder(r.Body).Decode(&stackCreate); err != nil {
+	var stackSpec interfaces.StackSpec
+	if err := json.NewDecoder(r.Body).Decode(&stackSpec); err != nil {
 		if err == io.EOF {
 			return errdefs.InvalidParameter(errors.New("got EOF while reading request body"))
 		}
 		return errdefs.InvalidParameter(err)
 	}
 
-	resp, err := sr.backend.CreateStack(stackCreate)
+	id, err := sr.backend.CreateStack(stackSpec)
 	if err != nil {
 		logrus.Errorf("Error creating stack: %s", err)
 		return err
 	}
 
-	return httputils.WriteJSON(w, http.StatusCreated, resp)
+	return httputils.WriteJSON(w, http.StatusCreated, id)
 }
 
 func (sr *stacksRouter) getStack(_ context.Context, w http.ResponseWriter, _ *http.Request, vars map[string]string) error {
@@ -66,7 +66,7 @@ func (sr *stacksRouter) removeStack(_ context.Context, w http.ResponseWriter, _ 
 }
 
 func (sr *stacksRouter) updateStack(_ context.Context, _ http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	var stackSpec types.StackSpec
+	var stackSpec interfaces.StackSpec
 	if err := json.NewDecoder(r.Body).Decode(&stackSpec); err != nil {
 		if err == io.EOF {
 			return errdefs.InvalidParameter(errors.New("got EOF while reading request body"))
@@ -88,22 +88,4 @@ func (sr *stacksRouter) updateStack(_ context.Context, _ http.ResponseWriter, r 
 	}
 
 	return nil
-}
-
-func (sr *stacksRouter) parseComposeInput(_ context.Context, w http.ResponseWriter, r *http.Request, _ map[string]string) error {
-	var input types.ComposeInput
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		if err == io.EOF {
-			return errdefs.InvalidParameter(errors.New("got EOF while reading request body"))
-		}
-		return errdefs.InvalidParameter(err)
-	}
-
-	resp, err := sr.backend.ParseComposeInput(input)
-	if err != nil {
-		logrus.Errorf("Error creating stack: %s", err)
-		return err
-	}
-
-	return httputils.WriteJSON(w, http.StatusOK, resp)
 }

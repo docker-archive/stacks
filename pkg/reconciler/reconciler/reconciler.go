@@ -19,7 +19,7 @@ import (
 // implement the Reconciler.
 type Client interface {
 	// stack methods
-	GetSwarmStack(string) (interfaces.SwarmStack, error)
+	GetStack(string) (interfaces.Stack, error)
 
 	// service methods
 	GetServices(dockerTypes.ServiceListOptions) ([]swarm.Service, error)
@@ -98,7 +98,7 @@ func (r *reconciler) Reconcile(kind, id string) error {
 // reconcileStack implements the ReconcileStack method of the Reconciler
 // interface
 func (r *reconciler) reconcileStack(id string) error {
-	stack, err := r.cli.GetSwarmStack(id)
+	stack, err := r.cli.GetStack(id)
 	switch {
 	case errdefs.IsNotFound(err):
 		// if the stack isn't found, that means this is actually a deletion
@@ -193,7 +193,7 @@ func (r *reconciler) reconcileService(id string) error {
 	// now, get the stack itself.
 	// TODO(dperny): we may want to cache stacks so we don't have to do this
 	// lookup every time
-	stack, err := r.cli.GetSwarmStack(stackID)
+	stack, err := r.cli.GetStack(stackID)
 	// if the stack has been deleted, then the service must follow with it.
 	if errdefs.IsNotFound(err) {
 		delete(r.stackResources, id)
