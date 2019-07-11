@@ -11,8 +11,8 @@ import (
 
 	"github.com/docker/docker/api/types/events"
 
-	"github.com/docker/stacks/pkg/interfaces"
 	"github.com/docker/stacks/pkg/reconciler/notifier"
+	"github.com/docker/stacks/pkg/types"
 )
 
 type fakeRegisterFunc func(notifier.ObjectChangeNotifier)
@@ -118,7 +118,7 @@ var _ = Describe("Dispatcher", func() {
 
 			for i := 0; i < numberOfDuplicates; i++ {
 				eventC <- events.Message{
-					Type:   interfaces.StackEventType,
+					Type:   types.StackEventType,
 					Action: "update",
 					Actor:  actor,
 				}
@@ -126,7 +126,7 @@ var _ = Describe("Dispatcher", func() {
 
 			// we're expecting only 1 call to Reconcile
 			mockReconciler.EXPECT().Reconcile(
-				gomock.Eq(interfaces.StackEventType),
+				gomock.Eq(types.StackEventType),
 				gomock.Eq("someID"),
 			).Return(nil)
 
@@ -161,7 +161,7 @@ var _ = Describe("Dispatcher", func() {
 			// (service config secret network stack)
 			orderIn := []objTuple{
 				{
-					kind: interfaces.StackEventType,
+					kind: types.StackEventType,
 					id:   "stack1",
 				}, {
 					kind: events.NetworkEventType,
@@ -188,7 +188,7 @@ var _ = Describe("Dispatcher", func() {
 					kind: events.NetworkEventType,
 					id:   "network2",
 				}, {
-					kind: interfaces.StackEventType,
+					kind: types.StackEventType,
 					id:   "stack2",
 				},
 			}
@@ -235,7 +235,7 @@ var _ = Describe("Dispatcher", func() {
 			// * passing an unexpected ID causes a failure
 			gomock.InOrder(
 				mockReconciler.EXPECT().Reconcile(
-					interfaces.StackEventType, MatchesIDs("stack1", "stack2"),
+					types.StackEventType, MatchesIDs("stack1", "stack2"),
 				).Do(closeWhenProcessed).Return(nil).Times(2),
 				mockReconciler.EXPECT().Reconcile(
 					events.NetworkEventType, MatchesIDs("network1", "network2"),

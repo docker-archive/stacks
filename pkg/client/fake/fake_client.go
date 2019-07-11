@@ -44,12 +44,12 @@ func NewStackClient(optsFunc ...StackOptionFunc) *StackClient {
 }
 
 // StackCreate creates a new stack.
-func (c *StackClient) StackCreate(_ context.Context, stack types.StackCreate, _ types.StackCreateOptions) (types.StackCreateResponse, error) {
+func (c *StackClient) StackCreate(_ context.Context, spec types.StackSpec, _ types.StackCreateOptions) (types.StackCreateResponse, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	newStack := types.Stack{
 		ID:   fmt.Sprintf("%d", c.idx),
-		Spec: stack.Spec,
+		Spec: spec,
 	}
 	c.idx++
 	c.stacks[newStack.ID] = newStack

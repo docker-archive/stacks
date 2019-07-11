@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/docker/stacks/pkg/interfaces"
+	"github.com/docker/stacks/pkg/types"
 )
 
 // TestMarshalUnmarshal tests that pass a pair of stack objects to
@@ -28,7 +28,7 @@ func TestMarshalUnmarshal(t *testing.T) {
 
 	// we don't have to fully fill this in -- we're testing proto marshalling,
 	// not JSON marshalling. just add some canned data
-	stack := &interfaces.Stack{
+	stack := &types.Stack{
 		ID: "someID",
 		Meta: swarm.Meta{
 			CreatedAt: ct,
@@ -37,7 +37,7 @@ func TestMarshalUnmarshal(t *testing.T) {
 				Index: 1,
 			},
 		},
-		Spec: interfaces.StackSpec{
+		Spec: types.StackSpec{
 			Annotations: swarm.Annotations{
 				Name: "someName",
 				Labels: map[string]string{

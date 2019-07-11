@@ -44,13 +44,3 @@ func errorMock(statusCode int, message string) func(req *http.Request) (*http.Re
 		}, nil
 	}
 }
-
-// nolint: unused
-func plainTextErrorMock(statusCode int, message string) func(req *http.Request) (*http.Response, error) {
-	return func(req *http.Request) (*http.Response, error) {
-		return &http.Response{
-			StatusCode: statusCode,
-			Body:       ioutil.NopCloser(bytes.NewReader([]byte(message))),
-		}, nil
-	}
-}

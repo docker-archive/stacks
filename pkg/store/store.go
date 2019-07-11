@@ -3,10 +3,10 @@ package store
 import (
 	"context"
 
-	"github.com/docker/stacks/pkg/interfaces"
+	"github.com/docker/stacks/pkg/types"
 )
 
-// StackStore is an implementation of the interfaces.StackStore interface,
+// StackStore is an implementation of the types.StackStore interface,
 // which provides for the storage and retrieval of Stack objects from the
 // swarmkit object store.
 type StackStore struct {
@@ -22,12 +22,12 @@ func New(client ResourcesClient) *StackStore {
 
 // AddStack creates a new Stack object in the swarmkit data store. It returns
 // the ID of the new object if successful, or an error otherwise.
-func (s *StackStore) AddStack(st interfaces.Stack) (string, error) {
+func (s *StackStore) AddStack(st types.Stack) (string, error) {
 	return AddStack(context.TODO(), s.client, st)
 }
 
 // UpdateStack updates an existing Stack object
-func (s *StackStore) UpdateStack(id string, st interfaces.StackSpec, version uint64) error {
+func (s *StackStore) UpdateStack(id string, st types.StackSpec, version uint64) error {
 	return UpdateStack(context.TODO(), s.client, id, st, version)
 }
 
@@ -36,12 +36,12 @@ func (s *StackStore) DeleteStack(id string) error {
 	return DeleteStack(context.TODO(), s.client, id)
 }
 
-// GetStack retrieves and returns an exist interfaces.Stack object by ID.
-func (s *StackStore) GetStack(id string) (interfaces.Stack, error) {
+// GetStack retrieves and returns an exist types.Stack object by ID.
+func (s *StackStore) GetStack(id string) (types.Stack, error) {
 	return GetStack(context.TODO(), s.client, id)
 }
 
 // ListStacks lists all available stack objects
-func (s *StackStore) ListStacks() ([]interfaces.Stack, error) {
+func (s *StackStore) ListStacks() ([]types.Stack, error) {
 	return ListStacks(context.TODO(), s.client)
 }

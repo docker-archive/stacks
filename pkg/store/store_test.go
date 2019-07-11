@@ -15,6 +15,7 @@ import (
 
 	"github.com/docker/stacks/pkg/interfaces"
 	"github.com/docker/stacks/pkg/mocks"
+	"github.com/docker/stacks/pkg/types"
 )
 
 var _ = Describe("StackStore", func() {
@@ -22,7 +23,7 @@ var _ = Describe("StackStore", func() {
 	// instead of the stacks functions directly. The answer is just that I
 	// refactored the code into functions (for reuse) and did not want to have
 	// to rewrite all of the tests.
-	It("should conform to the interfaces.StackStore interface", func() {
+	It("should conform to the types.StackStore interface", func() {
 		// This doesn't actually contain any useful assertions, it'll just fail
 		// at build time. However, we have to include at least one use of the
 		// variable s or the build will also fail.
@@ -40,7 +41,7 @@ var _ = Describe("StackStore", func() {
 			mockController *gomock.Controller
 			mockClient     *mocks.MockResourcesClient
 
-			stack         *interfaces.Stack
+			stack         *types.Stack
 			stackResource *swarmapi.Resource
 
 			timeProto *gogotypes.Timestamp
@@ -54,8 +55,8 @@ var _ = Describe("StackStore", func() {
 			s = New(mockClient)
 
 			// these are essentially the same stacks from marshal_test.go
-			stack = &interfaces.Stack{
-				Spec: interfaces.StackSpec{
+			stack = &types.Stack{
+				Spec: types.StackSpec{
 					Annotations: swarm.Annotations{
 						Name: "someName",
 						Labels: map[string]string{
@@ -133,7 +134,7 @@ var _ = Describe("StackStore", func() {
 			// create new stack objects that are matching our expectations.
 			// additionally, include the information from the stackResource
 			// object
-			updatedStack := interfaces.Stack{
+			updatedStack := types.Stack{
 				ID: stackResource.ID,
 				Meta: swarm.Meta{
 					Version: swarm.Version{
@@ -142,7 +143,7 @@ var _ = Describe("StackStore", func() {
 					CreatedAt: timeObj,
 					UpdatedAt: timeObj,
 				},
-				Spec: interfaces.StackSpec{
+				Spec: types.StackSpec{
 					Annotations: swarm.Annotations{
 						Name: "someName",
 						Labels: map[string]string{
@@ -209,7 +210,7 @@ var _ = Describe("StackStore", func() {
 		})
 
 		Specify("GetStack", func() {
-			expectedStackWithFields := interfaces.Stack{
+			expectedStackWithFields := types.Stack{
 				ID: stackResource.ID,
 				Meta: swarm.Meta{
 					Version: swarm.Version{
@@ -246,8 +247,8 @@ var _ = Describe("StackStore", func() {
 			)
 			BeforeEach(func() {
 				for i := 0; i < numListedResources; i++ {
-					st := interfaces.Stack{
-						Spec: interfaces.StackSpec{
+					st := types.Stack{
+						Spec: types.StackSpec{
 							Annotations: swarm.Annotations{
 								Name: fmt.Sprintf("stack_%v", i),
 								Labels: map[string]string{

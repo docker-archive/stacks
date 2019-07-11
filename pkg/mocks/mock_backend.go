@@ -12,7 +12,7 @@ import (
 	events "github.com/docker/docker/api/types/events"
 	filters "github.com/docker/docker/api/types/filters"
 	swarm "github.com/docker/docker/api/types/swarm"
-	interfaces "github.com/docker/stacks/pkg/interfaces"
+	types0 "github.com/docker/stacks/pkg/types"
 	gomock "github.com/golang/mock/gomock"
 )
 
@@ -92,9 +92,9 @@ func (mr *MockBackendClientMockRecorder) CreateService(arg0, arg1, arg2 interfac
 }
 
 // CreateStack mocks base method
-func (m *MockBackendClient) CreateStack(arg0 interfaces.StackSpec) (string, error) {
+func (m *MockBackendClient) CreateStack(arg0 types0.StackSpec) (types0.StackCreateResponse, error) {
 	ret := m.ctrl.Call(m, "CreateStack", arg0)
-	ret0, _ := ret[0].(string)
+	ret0, _ := ret[0].(types0.StackCreateResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -249,9 +249,9 @@ func (mr *MockBackendClientMockRecorder) GetServices(arg0 interface{}) *gomock.C
 }
 
 // GetStack mocks base method
-func (m *MockBackendClient) GetStack(arg0 string) (interfaces.Stack, error) {
+func (m *MockBackendClient) GetStack(arg0 string) (types0.Stack, error) {
 	ret := m.ctrl.Call(m, "GetStack", arg0)
-	ret0, _ := ret[0].(interfaces.Stack)
+	ret0, _ := ret[0].(types0.Stack)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -302,9 +302,9 @@ func (mr *MockBackendClientMockRecorder) Info() *gomock.Call {
 }
 
 // ListStacks mocks base method
-func (m *MockBackendClient) ListStacks() ([]interfaces.Stack, error) {
+func (m *MockBackendClient) ListStacks() ([]types0.Stack, error) {
 	ret := m.ctrl.Call(m, "ListStacks")
-	ret0, _ := ret[0].([]interfaces.Stack)
+	ret0, _ := ret[0].([]types0.Stack)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -423,7 +423,7 @@ func (mr *MockBackendClientMockRecorder) UpdateService(arg0, arg1, arg2, arg3, a
 }
 
 // UpdateStack mocks base method
-func (m *MockBackendClient) UpdateStack(arg0 string, arg1 interfaces.StackSpec, arg2 uint64) error {
+func (m *MockBackendClient) UpdateStack(arg0 string, arg1 types0.StackSpec, arg2 uint64) error {
 	ret := m.ctrl.Call(m, "UpdateStack", arg0, arg1, arg2)
 	ret0, _ := ret[0].(error)
 	return ret0

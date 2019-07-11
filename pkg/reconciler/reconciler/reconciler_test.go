@@ -15,7 +15,7 @@ import (
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/swarm"
 
-	"github.com/docker/stacks/pkg/interfaces"
+	"github.com/docker/stacks/pkg/types"
 )
 
 const (
@@ -101,16 +101,16 @@ var _ = Describe("Reconciler", func() {
 		// Reconciler
 		notifier *fakeObjectChangeNotifier
 
-		stackFixture *interfaces.Stack
+		stackFixture *types.Stack
 	)
 
 	BeforeEach(func() {
 		// first things first, create a fakeReconcilerClient
 		f = newFakeReconcilerClient()
 
-		stackFixture = &interfaces.Stack{
+		stackFixture = &types.Stack{
 			ID: stackID,
-			Spec: interfaces.StackSpec{
+			Spec: types.StackSpec{
 				Annotations: swarm.Annotations{
 					Name:   stackName,
 					Labels: map[string]string{},
@@ -155,7 +155,7 @@ var _ = Describe("Reconciler", func() {
 					Annotations: swarm.Annotations{
 						Name: "service1-name",
 						Labels: map[string]string{
-							interfaces.StackLabel: stackFixture.ID,
+							types.StackLabel: stackFixture.ID,
 						},
 					},
 				},
@@ -163,7 +163,7 @@ var _ = Describe("Reconciler", func() {
 					Annotations: swarm.Annotations{
 						Name: "service2-name",
 						Labels: map[string]string{
-							interfaces.StackLabel: stackFixture.ID,
+							types.StackLabel: stackFixture.ID,
 						},
 					},
 				},
@@ -177,7 +177,7 @@ var _ = Describe("Reconciler", func() {
 		JustBeforeEach(func() {
 			// this test handles all ReconcileStack cases, so its pretty
 			// obvious that ReconcileStack is gonna be called for each of them
-			err = r.Reconcile(interfaces.StackEventType, stackID)
+			err = r.Reconcile(types.StackEventType, stackID)
 		})
 
 		When("a new stack is created", func() {
@@ -277,7 +277,7 @@ var _ = Describe("Reconciler", func() {
 						Annotations: swarm.Annotations{
 							Name: "doesnotbelong",
 							Labels: map[string]string{
-								interfaces.StackLabel: stackFixture.ID,
+								types.StackLabel: stackFixture.ID,
 							},
 						},
 					},
@@ -301,18 +301,18 @@ var _ = Describe("Reconciler", func() {
 				{
 					Annotations: swarm.Annotations{
 						Name:   "service1",
-						Labels: map[string]string{interfaces.StackLabel: stackID},
+						Labels: map[string]string{types.StackLabel: stackID},
 					},
 				},
 				{
 					Annotations: swarm.Annotations{
 						Name:   "service2",
-						Labels: map[string]string{interfaces.StackLabel: "notthisone"},
+						Labels: map[string]string{types.StackLabel: "notthisone"},
 					},
 				}, {
 					Annotations: swarm.Annotations{
 						Name:   "service3",
-						Labels: map[string]string{interfaces.StackLabel: stackID},
+						Labels: map[string]string{types.StackLabel: stackID},
 					},
 				}, {
 					Annotations: swarm.Annotations{
@@ -328,7 +328,7 @@ var _ = Describe("Reconciler", func() {
 			}
 		})
 		JustBeforeEach(func() {
-			err = r.Reconcile(interfaces.StackEventType, stackID)
+			err = r.Reconcile(types.StackEventType, stackID)
 		})
 		It("should return no error", func() {
 			Expect(err).ToNot(HaveOccurred())
@@ -376,7 +376,7 @@ var _ = Describe("Reconciler", func() {
 					spec = swarm.ServiceSpec{
 						Annotations: swarm.Annotations{
 							Name:   "foo",
-							Labels: map[string]string{interfaces.StackLabel: stackID},
+							Labels: map[string]string{types.StackLabel: stackID},
 						},
 					}
 					resp, createErr := f.CreateService(spec, "", false)
@@ -398,8 +398,8 @@ var _ = Describe("Reconciler", func() {
 						// otherwise we'd mutate the old map which is linked to
 						// the old spec
 						differentSpec.Annotations.Labels = map[string]string{
-							interfaces.StackLabel: stackID,
-							"klaatu":              "barada nikto",
+							types.StackLabel: stackID,
+							"klaatu":         "barada nikto",
 						}
 						stackFixture.Spec.Services = append(stackFixture.Spec.Services, differentSpec)
 						f.stacks[stackFixture.ID] = stackFixture

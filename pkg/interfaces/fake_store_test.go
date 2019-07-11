@@ -9,16 +9,18 @@ import (
 	"github.com/docker/docker/errdefs"
 
 	"github.com/stretchr/testify/require"
+
+	types "github.com/docker/stacks/pkg/types"
 )
 
-func generateFixtures(n int) []Stack {
-	fixtures := make([]Stack, n)
+func generateFixtures(n int) []types.Stack {
+	fixtures := make([]types.Stack, n)
 	return fixtures
 }
 
-func getTestSpecs(name, image string) StackSpec {
+func getTestSpecs(name, image string) types.StackSpec {
 
-	spec := StackSpec{
+	spec := types.StackSpec{
 		Services: []swarm.ServiceSpec{
 			{
 				Annotations: swarm.Annotations{
@@ -36,9 +38,9 @@ func getTestSpecs(name, image string) StackSpec {
 	return spec
 }
 
-func getTestStacks(name, image string) Stack {
+func getTestStacks(name, image string) types.Stack {
 	stackSpec := getTestSpecs(name, image)
-	return Stack{
+	return types.Stack{
 		Spec: stackSpec,
 	}
 }

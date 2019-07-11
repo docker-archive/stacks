@@ -9,16 +9,16 @@ import (
 	"github.com/docker/swarmkit/api"
 	gogotypes "github.com/gogo/protobuf/types"
 
-	"github.com/docker/stacks/pkg/interfaces"
+	"github.com/docker/stacks/pkg/types"
 )
 
 func init() {
-	typeurl.Register(&interfaces.Stack{}, "github.com/docker/stacks/Stack")
+	typeurl.Register(&types.Stack{}, "github.com/docker/stacks/Stack")
 }
 
 // MarshalStacks takes a Stack object and marshals it into a protocol buffer
 // Any message. Under the hood, this relies on marshaling the objects to JSON.
-func MarshalStacks(stack *interfaces.Stack) (*gogotypes.Any, error) {
+func MarshalStacks(stack *types.Stack) (*gogotypes.Any, error) {
 	return typeurl.MarshalAny(stack)
 
 }
@@ -29,15 +29,15 @@ func MarshalStacks(stack *interfaces.Stack) (*gogotypes.Any, error) {
 // This is because UnmarshalStacks does the work of updating the fields in the
 // Stack (Meta, Version, and ID) that are derrived from the values assigned by
 // swarmkit and contained in the Resource
-func UnmarshalStacks(resource *api.Resource) (*interfaces.Stack, error) {
+func UnmarshalStacks(resource *api.Resource) (*types.Stack, error) {
 	iface, err := typeurl.UnmarshalAny(resource.Payload)
 	if err != nil {
 		return nil, err
 	}
 	// this is a naked cast, which means if for some reason this _isn't_ a
-	// CombinedStack object, the program will panic. This is fine, because if
+	// Stack object, the program will panic. This is fine, because if
 	// such a thing were to occur, it would be panic-worthy.
-	stack := iface.(*interfaces.Stack)
+	stack := iface.(*types.Stack)
 
 	// extract the times from the swarmkit resource message.
 	createdAt, err := gogotypes.TimestampFromProto(resource.Meta.CreatedAt)

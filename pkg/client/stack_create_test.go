@@ -19,7 +19,7 @@ func TestCreateStackServerError(t *testing.T) {
 	}
 	cli, err := NewClientWithSettings(s)
 	assert.NilError(t, err)
-	_, err = cli.StackCreate(ctx, types.StackCreate{}, types.StackCreateOptions{})
+	_, err = cli.StackCreate(ctx, types.StackSpec{}, types.StackCreateOptions{})
 	assert.ErrorContains(t, err, "Server error")
 }
 
@@ -35,6 +35,6 @@ func TestCreateStackEmpty(t *testing.T) {
 	}
 	cli, err := NewClientWithSettings(s)
 	assert.NilError(t, err)
-	_, err = cli.StackCreate(ctx, types.StackCreate{}, types.StackCreateOptions{})
+	_, err = cli.StackCreate(ctx, types.StackSpec{}, types.StackCreateOptions{})
 	assert.NilError(t, err)
 }

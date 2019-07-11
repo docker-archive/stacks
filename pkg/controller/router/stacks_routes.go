@@ -13,7 +13,7 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/sirupsen/logrus"
 
-	"github.com/docker/stacks/pkg/interfaces"
+	"github.com/docker/stacks/pkg/types"
 )
 
 func (sr *stacksRouter) getStacks(_ context.Context, w http.ResponseWriter, _ *http.Request, _ map[string]string) error {
@@ -27,7 +27,7 @@ func (sr *stacksRouter) getStacks(_ context.Context, w http.ResponseWriter, _ *h
 }
 
 func (sr *stacksRouter) createStack(_ context.Context, w http.ResponseWriter, r *http.Request, _ map[string]string) error {
-	var stackSpec interfaces.StackSpec
+	var stackSpec types.StackSpec
 	if err := json.NewDecoder(r.Body).Decode(&stackSpec); err != nil {
 		if err == io.EOF {
 			return errdefs.InvalidParameter(errors.New("got EOF while reading request body"))
@@ -66,7 +66,7 @@ func (sr *stacksRouter) removeStack(_ context.Context, w http.ResponseWriter, _ 
 }
 
 func (sr *stacksRouter) updateStack(_ context.Context, _ http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	var stackSpec interfaces.StackSpec
+	var stackSpec types.StackSpec
 	if err := json.NewDecoder(r.Body).Decode(&stackSpec); err != nil {
 		if err == io.EOF {
 			return errdefs.InvalidParameter(errors.New("got EOF while reading request body"))

@@ -11,15 +11,15 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/sirupsen/logrus"
 
-	"github.com/docker/stacks/pkg/interfaces"
 	"github.com/docker/stacks/pkg/reconciler/notifier"
+	"github.com/docker/stacks/pkg/types"
 )
 
 // Client is the subset of interfaces.BackendClient methods needed to
 // implement the Reconciler.
 type Client interface {
 	// stack methods
-	GetStack(string) (interfaces.Stack, error)
+	GetStack(string) (types.Stack, error)
 
 	// service methods
 	GetServices(dockerTypes.ServiceListOptions) ([]swarm.Service, error)
@@ -85,7 +85,7 @@ func newReconciler(notify notifier.ObjectChangeNotifier, cli Client) *reconciler
 
 func (r *reconciler) Reconcile(kind, id string) error {
 	switch kind {
-	case interfaces.StackEventType:
+	case types.StackEventType:
 		return r.reconcileStack(id)
 	case events.ServiceEventType:
 		return r.reconcileService(id)
@@ -170,7 +170,7 @@ func (r *reconciler) reconcileService(id string) error {
 	}
 
 	// now, does the service belong to a stack?
-	stackID, ok := service.Spec.Annotations.Labels[interfaces.StackLabel]
+	stackID, ok := service.Spec.Annotations.Labels[types.StackLabel]
 	if !ok {
 		// if the service does not belong to any stack, then there is no
 		// reconciling to be done.
@@ -277,6 +277,6 @@ func (r *reconciler) handleDeletedService(id string) error {
 // the stack label being equal to the stack ID.
 func stackLabelFilter(stackID string) filters.Args {
 	return filters.NewArgs(
-		filters.Arg("label", fmt.Sprintf("%s=%s", interfaces.StackLabel, stackID)),
+		filters.Arg("label", fmt.Sprintf("%s=%s", types.StackLabel, stackID)),
 	)
 }

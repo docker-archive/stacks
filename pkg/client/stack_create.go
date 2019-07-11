@@ -8,7 +8,7 @@ import (
 )
 
 // StackCreate creates a new Stack
-func (cli *Client) StackCreate(ctx context.Context, stack types.StackCreate, options types.StackCreateOptions) (types.StackCreateResponse, error) {
+func (cli *Client) StackCreate(ctx context.Context, spec types.StackSpec, options types.StackCreateOptions) (types.StackCreateResponse, error) {
 	headers := map[string][]string{
 		"version": {cli.settings.Version},
 	}
@@ -18,7 +18,7 @@ func (cli *Client) StackCreate(ctx context.Context, stack types.StackCreate, opt
 	}
 
 	var response types.StackCreateResponse
-	resp, err := cli.post(ctx, "/stacks", nil, stack, headers)
+	resp, err := cli.post(ctx, "/stacks", nil, spec, headers)
 	if err != nil {
 		return response, err
 	}

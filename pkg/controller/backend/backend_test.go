@@ -11,6 +11,7 @@ import (
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/stacks/pkg/interfaces"
 	"github.com/docker/stacks/pkg/mocks"
+	"github.com/docker/stacks/pkg/types"
 )
 
 func TestStacksBackendUpdateOutOfSequence(t *testing.T) {
@@ -22,7 +23,7 @@ func TestStacksBackendUpdateOutOfSequence(t *testing.T) {
 	b := NewDefaultStacksBackend(interfaces.NewFakeStackStore(), backendClient)
 
 	// Create a stack with a valid StackCreate
-	id, err := b.CreateStack(interfaces.StackSpec{
+	response, err := b.CreateStack(types.StackSpec{
 		Annotations: swarm.Annotations{
 			Name: "teststack",
 		},
@@ -30,7 +31,7 @@ func TestStacksBackendUpdateOutOfSequence(t *testing.T) {
 	require.NoError(err)
 
 	// Inspect the stack
-	stack, err := b.GetStack(id)
+	stack, err := b.GetStack(response.ID)
 	require.NoError(err)
 
 	stack.Spec.Annotations.Name = "test1"
@@ -54,7 +55,7 @@ func TestStacksBackendInvalidCreate(t *testing.T) {
 	backendClient := mocks.NewMockBackendClient(ctrl)
 	b := NewDefaultStacksBackend(interfaces.NewFakeStackStore(), backendClient)
 
-	_, err := b.CreateStack(interfaces.StackSpec{})
+	_, err := b.CreateStack(types.StackSpec{})
 	require.Error(err)
 	require.Contains(err.Error(), "contains no name")
 
@@ -104,7 +105,7 @@ func TestStacksBackendCRUD(t *testing.T) {
 		},
 	}
 
-	stack1Spec := interfaces.StackSpec{
+	stack1Spec := types.StackSpec{
 		Annotations: swarm.Annotations{
 			Name: "stack1",
 		},
@@ -113,12 +114,12 @@ func TestStacksBackendCRUD(t *testing.T) {
 		},
 	}
 
-	id, err := b.CreateStack(stack1Spec)
+	response, err := b.CreateStack(stack1Spec)
 	require.NoError(err)
-	require.Equal("1", id)
+	require.Equal("1", response.ID)
 
 	// Create another stack
-	stack2Spec := interfaces.StackSpec{
+	stack2Spec := types.StackSpec{
 		Annotations: swarm.Annotations{
 			Name: "stack2",
 		},
@@ -127,9 +128,9 @@ func TestStacksBackendCRUD(t *testing.T) {
 		},
 	}
 
-	id, err = b.CreateStack(stack2Spec)
+	response, err = b.CreateStack(stack2Spec)
 	require.NoError(err)
-	require.Equal("2", id)
+	require.Equal("2", response.ID)
 
 	// List both stacks
 	stacks, err := b.ListStacks()
@@ -159,7 +160,7 @@ func TestStacksBackendCRUD(t *testing.T) {
 	// TODO: require.Equal(stack.Orchestrator, types.OrchestratorSwarm)
 
 	// Update a stack
-	stack3Spec := interfaces.StackSpec{
+	stack3Spec := types.StackSpec{
 		Annotations: swarm.Annotations{
 			Name: "stack3",
 		},
@@ -194,7 +195,7 @@ func TestStackBackendSwarmSimpleConversion(t *testing.T) {
 	b := NewDefaultStacksBackend(interfaces.NewFakeStackStore(), backendClient)
 
 	// Create a stack, and retrieve the stored SwarmStack
-	stackSpec := interfaces.StackSpec{
+	stackSpec := types.StackSpec{
 		Annotations: swarm.Annotations{
 			Name: "teststack",
 			Labels: map[string]string{
@@ -302,12 +303,12 @@ func TestStackBackendSwarmSimpleConversion(t *testing.T) {
 		},
 	}, nil)
 
-	id, err := b.CreateStack(stackSpec)
+	response, err := b.CreateStack(stackSpec)
 	require.NoError(err)
 
-	stack, err := b.GetStack(id)
+	stack, err := b.GetStack(response.ID)
 	require.NoError(err)
-	require.Equal(stack.ID, id)
+	require.Equal(stack.ID, response.ID)
 	assert.DeepEqual(t, stack.Spec, stackSpec)
 }
 

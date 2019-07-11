@@ -13,7 +13,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"github.com/docker/stacks/pkg/interfaces"
+	"github.com/docker/stacks/pkg/types"
 )
 
 const (
@@ -59,7 +59,7 @@ func InitExtension(ctx context.Context, rc ResourcesClient) error {
 }
 
 // AddStack adds a stack
-func AddStack(ctx context.Context, rc ResourcesClient, st interfaces.Stack) (string, error) {
+func AddStack(ctx context.Context, rc ResourcesClient, st types.Stack) (string, error) {
 	// first, marshal the stacks to a proto message
 	any, err := MarshalStacks(&st)
 	if err != nil {
@@ -89,7 +89,7 @@ func AddStack(ctx context.Context, rc ResourcesClient, st interfaces.Stack) (str
 }
 
 // UpdateStack updates a stack's specs.
-func UpdateStack(ctx context.Context, rc ResourcesClient, id string, st interfaces.StackSpec, version uint64) error {
+func UpdateStack(ctx context.Context, rc ResourcesClient, id string, st types.StackSpec, version uint64) error {
 	// get the swarmkit resource
 	resp, err := rc.GetResource(ctx, &swarmapi.GetResourceRequest{
 		ResourceID: id,
@@ -141,22 +141,22 @@ func DeleteStack(ctx context.Context, rc ResourcesClient, id string) error {
 }
 
 // GetStack returns a stack
-func GetStack(ctx context.Context, rc ResourcesClient, id string) (interfaces.Stack, error) {
+func GetStack(ctx context.Context, rc ResourcesClient, id string) (types.Stack, error) {
 	resp, err := rc.GetResource(
 		ctx, &swarmapi.GetResourceRequest{ResourceID: id},
 	)
 	if err != nil {
-		return interfaces.Stack{}, err
+		return types.Stack{}, err
 	}
 	resource := resp.Resource
 
 	// now, we have to get the stack out of the resource object
 	stack, err := UnmarshalStacks(resource)
 	if err != nil {
-		return interfaces.Stack{}, err
+		return types.Stack{}, err
 	}
 	if stack == nil {
-		return interfaces.Stack{}, errors.New("got back an empty stack")
+		return types.Stack{}, errors.New("got back an empty stack")
 	}
 
 	// and then return the stack
@@ -164,7 +164,7 @@ func GetStack(ctx context.Context, rc ResourcesClient, id string) (interfaces.St
 }
 
 // ListStacks returns all stacks
-func ListStacks(ctx context.Context, rc ResourcesClient) ([]interfaces.Stack, error) {
+func ListStacks(ctx context.Context, rc ResourcesClient) ([]types.Stack, error) {
 	resp, err := rc.ListResources(ctx,
 		&swarmapi.ListResourcesRequest{
 			Filters: &swarmapi.ListResourcesRequest_Filters{
@@ -178,7 +178,7 @@ func ListStacks(ctx context.Context, rc ResourcesClient) ([]interfaces.Stack, er
 	}
 
 	// unmarshal and pack up all of the stack objects
-	stacks := make([]interfaces.Stack, 0, len(resp.Resources))
+	stacks := make([]types.Stack, 0, len(resp.Resources))
 	for _, resource := range resp.Resources {
 		stack, err := UnmarshalStacks(resource)
 		if err != nil {

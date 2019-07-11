@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/docker/stacks/pkg/interfaces"
+	"github.com/docker/stacks/pkg/types"
 )
 
 // DefaultStacksBackend implements the interfaces.StacksBackend interface, which serves as the
@@ -26,41 +27,43 @@ func NewDefaultStacksBackend(stackStore interfaces.StackStore, swarmBackend inte
 }
 
 // CreateStack creates a new stack if the stack is valid.
-func (b *DefaultStacksBackend) CreateStack(stackSpec interfaces.StackSpec) (string, error) {
+func (b *DefaultStacksBackend) CreateStack(stackSpec types.StackSpec) (types.StackCreateResponse, error) {
 
 	// FIXME: Structural Preconditions?
 	if stackSpec.Annotations.Name == "" {
-		return "", fmt.Errorf("StackSpec contains no name")
+		return types.StackCreateResponse{}, fmt.Errorf("StackSpec contains no name")
 	}
-	stack := interfaces.Stack{
+	stack := types.Stack{
 		Spec: stackSpec,
 	}
 
 	id, err := b.stackStore.AddStack(stack)
 	if err != nil {
-		return "", fmt.Errorf("unable to store stack: %s", err)
+		return types.StackCreateResponse{}, fmt.Errorf("unable to store stack: %s", err)
 	}
 
-	return id, err
+	return types.StackCreateResponse{
+		ID: id,
+	}, err
 }
 
 // GetStack retrieves a stack by its ID.
-func (b *DefaultStacksBackend) GetStack(id string) (interfaces.Stack, error) {
+func (b *DefaultStacksBackend) GetStack(id string) (types.Stack, error) {
 	stack, err := b.stackStore.GetStack(id)
 	if err != nil {
-		return interfaces.Stack{}, fmt.Errorf("unable to retrieve stack %s: %s", id, err)
+		return types.Stack{}, fmt.Errorf("unable to retrieve stack %s: %s", id, err)
 	}
 
 	return stack, err
 }
 
 // ListStacks lists all stacks.
-func (b *DefaultStacksBackend) ListStacks() ([]interfaces.Stack, error) {
+func (b *DefaultStacksBackend) ListStacks() ([]types.Stack, error) {
 	return b.stackStore.ListStacks()
 }
 
 // UpdateStack updates a stack.
-func (b *DefaultStacksBackend) UpdateStack(id string, spec interfaces.StackSpec, version uint64) error {
+func (b *DefaultStacksBackend) UpdateStack(id string, spec types.StackSpec, version uint64) error {
 	return b.stackStore.UpdateStack(id, spec, version)
 }
 
@@ -71,35 +74,29 @@ func (b *DefaultStacksBackend) DeleteStack(id string) error {
 
 /*
 // FIXME:  DELETE
-func (b *DefaultStacksBackend) convertToSwarmStackSpec(spec types.StackSpec) (interfaces.StackSpec, error) {
-	// Substitute variables with desired property values
-	substitutedSpec, err := substitution.DoSubstitution(spec)
-	if err != nil {
-		return interfaces.StackSpec{}, err
-	}
-
+func (b *DefaultStacksBackend) convertToSwarmStackSpec(spec types.StackSpec) (types.StackSpec, error) {
 	namespace := convert.NewNamespace(spec.Metadata.Name)
 
-	services, err := convert.Services(namespace, substitutedSpec, b.swarmBackend)
+	services, err := convert.Services(namespace, spec, b.swarmBackend)
 	if err != nil {
-		return interfaces.StackSpec{}, fmt.Errorf("failed to convert services : %s", err)
+		return types.StackSpec{}, fmt.Errorf("failed to convert services : %s", err)
 	}
 
-	configs, err := convert.Configs(namespace, substitutedSpec.Configs)
+	configs, err := convert.Configs(namespace, spec.Configs)
 	if err != nil {
-		return interfaces.StackSpec{}, fmt.Errorf("failed to convert configs: %s", err)
+		return types.StackSpec{}, fmt.Errorf("failed to convert configs: %s", err)
 	}
 
-	secrets, err := convert.Secrets(namespace, substitutedSpec.Secrets)
+	secrets, err := convert.Secrets(namespace, spec.Secrets)
 	if err != nil {
-		return interfaces.StackSpec{}, fmt.Errorf("failed to convert secrets: %s", err)
+		return types.StackSpec{}, fmt.Errorf("failed to convert secrets: %s", err)
 	}
 
-	serviceNetworks := getServicesDeclaredNetworks(substitutedSpec.Services)
-	networkCreates, _ := convert.Networks(namespace, substitutedSpec.Networks, serviceNetworks)
+	serviceNetworks := getServicesDeclaredNetworks(spec.Services)
+	networkCreates, _ := convert.Networks(namespace, spec.Networks, serviceNetworks)
 	// TODO: validate external networks?
 
-	stackSpec := interfaces.StackSpec{
+	stackSpec := types.StackSpec{
 		Annotations: swarm.Annotations{
 			Name:   spec.Metadata.Name,
 			Labels: spec.Metadata.Labels,

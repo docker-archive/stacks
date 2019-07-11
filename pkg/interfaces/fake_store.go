@@ -6,11 +6,13 @@ import (
 	"sync"
 
 	"github.com/docker/docker/errdefs"
+
+	"github.com/docker/stacks/pkg/types"
 )
 
 // FakeStackStore stores stacks
 type FakeStackStore struct {
-	stacks map[string]Stack
+	stacks map[string]types.Stack
 	sync.RWMutex
 	curID int
 }
@@ -18,7 +20,7 @@ type FakeStackStore struct {
 // NewFakeStackStore creates a new StackStore
 func NewFakeStackStore() StackStore {
 	return &FakeStackStore{
-		stacks: make(map[string]Stack),
+		stacks: make(map[string]types.Stack),
 		// Don't start from ID 0, to catch any uninitialized types.
 		curID: 1,
 	}
@@ -32,7 +34,7 @@ func IsErrNotFound(err error) bool {
 }
 
 // AddStack adds a stack to the store.
-func (s *FakeStackStore) AddStack(stack Stack) (string, error) {
+func (s *FakeStackStore) AddStack(stack types.Stack) (string, error) {
 	s.Lock()
 	defer s.Unlock()
 
@@ -45,17 +47,17 @@ func (s *FakeStackStore) AddStack(stack Stack) (string, error) {
 	return stack.ID, nil
 }
 
-func (s *FakeStackStore) getStack(id string) (Stack, error) {
+func (s *FakeStackStore) getStack(id string) (types.Stack, error) {
 	stack, ok := s.stacks[id]
 	if !ok {
-		return Stack{}, errNotFound
+		return types.Stack{}, errNotFound
 	}
 
 	return stack, nil
 }
 
 // UpdateStack updates the stack in the store.
-func (s *FakeStackStore) UpdateStack(id string, spec StackSpec, version uint64) error {
+func (s *FakeStackStore) UpdateStack(id string, spec types.StackSpec, version uint64) error {
 	s.Lock()
 	defer s.Unlock()
 
@@ -83,7 +85,7 @@ func (s *FakeStackStore) DeleteStack(id string) error {
 }
 
 // GetStack retrieves a single stack from the store.
-func (s *FakeStackStore) GetStack(id string) (Stack, error) {
+func (s *FakeStackStore) GetStack(id string) (types.Stack, error) {
 	s.RLock()
 	defer s.RUnlock()
 	stack, err := s.getStack(id)
@@ -91,10 +93,10 @@ func (s *FakeStackStore) GetStack(id string) (Stack, error) {
 }
 
 // ListStacks returns all known stacks from the store.
-func (s *FakeStackStore) ListStacks() ([]Stack, error) {
+func (s *FakeStackStore) ListStacks() ([]types.Stack, error) {
 	s.RLock()
 	defer s.RUnlock()
-	stacks := []Stack{}
+	stacks := []types.Stack{}
 	for _, stack := range s.stacks {
 		stacks = append(stacks, stack)
 	}

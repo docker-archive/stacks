@@ -11,6 +11,8 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
 	"github.com/sirupsen/logrus"
+
+	"github.com/docker/stacks/pkg/types"
 )
 
 // BackendAPIClientShim is an implementation of BackendClient that utilizes an
@@ -87,10 +89,10 @@ func (c *BackendAPIClientShim) UnsubscribeFromEvents(eventChan chan interface{})
 }
 
 // CreateStack creates a stack
-func (c *BackendAPIClientShim) CreateStack(create StackSpec) (string, error) {
-	id, err := c.StacksBackend.CreateStack(create)
+func (c *BackendAPIClientShim) CreateStack(create types.StackSpec) (types.StackCreateResponse, error) {
+	response, err := c.StacksBackend.CreateStack(create)
 	if err != nil {
-		return id, fmt.Errorf("unable to create stack: %s", err)
+		return response, fmt.Errorf("unable to create stack: %s", err)
 	}
 
 	go func() {
@@ -99,17 +101,17 @@ func (c *BackendAPIClientShim) CreateStack(create StackSpec) (string, error) {
 			Type:   "stack",
 			Action: "create",
 			Actor: events.Actor{
-				ID: id,
+				ID: response.ID,
 			},
 		}
 		logrus.Debugf("wrote stack create event")
 	}()
 
-	return id, err
+	return response, err
 }
 
 // UpdateStack updates a stack.
-func (c *BackendAPIClientShim) UpdateStack(id string, spec StackSpec, version uint64) error {
+func (c *BackendAPIClientShim) UpdateStack(id string, spec types.StackSpec, version uint64) error {
 	err := c.StacksBackend.UpdateStack(id, spec, version)
 	go func() {
 		logrus.Debugf("writing stack update event")

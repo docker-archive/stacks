@@ -83,8 +83,10 @@ func parseKubeStackID(id string) (string, string, error) {
 }
 
 // StackCreate creates a stack.
-func (c *StacksBackend) StackCreate(_ context.Context, create types.StackCreate, _ types.StackCreateOptions) (types.StackCreateResponse, error) {
-	kubeStack := FromStackSpec(create.Spec)
+func (c *StacksBackend) StackCreate(_ context.Context, create types.StackSpec, _ types.StackCreateOptions) (types.StackCreateResponse, error) {
+	kubeStack := &v1beta2.Stack{}
+	// FIXME
+	// kubeStack := FromStackSpec(create)
 
 	_, err := c.composeClient.Stacks(kubeStack.ObjectMeta.Namespace).Create(kubeStack)
 	if err != nil {
@@ -92,56 +94,62 @@ func (c *StacksBackend) StackCreate(_ context.Context, create types.StackCreate,
 	}
 
 	return types.StackCreateResponse{
-		ID: getKubeStackID(create.Spec.Collection, create.Spec.Metadata.Name),
+		ID: getKubeStackID("", create.Annotations.Name),
+		// FIXME
+		// ID: getKubeStackID(create.Collection, create.Annotations.Name),
 	}, nil
 }
 
 // StackInspect inspects a stack.
 func (c *StacksBackend) StackInspect(_ context.Context, id string) (types.Stack, error) {
-	namespace, name, err := parseKubeStackID(id)
-	if err != nil {
-		// Any error in parsing the stack ID results in a "stack not
-		// found" response, as the provided ID is not a valid ID for
-		// the kube backend.
-		return types.Stack{}, errNotFound
-	}
+	// namespace, name, err := parseKubeStackID(id)
+	// if err != nil {
+	// 	// Any error in parsing the stack ID results in a "stack not
+	// 	// found" response, as the provided ID is not a valid ID for
+	// 	// the kube backend.
+	// 	return types.Stack{}, errNotFound
+	// }
 
-	kubeStack, err := c.composeClient.Stacks(namespace).Get(name, metav1.GetOptions{})
-	if err != nil {
-		if kerrors.IsNotFound(err) {
-			return types.Stack{}, errNotFound
-		}
-		return types.Stack{}, fmt.Errorf("unable to get stack %s: %s", id, err)
-	}
+	// kubeStack, err := c.composeClient.Stacks(namespace).Get(name, metav1.GetOptions{})
+	// if err != nil {
+	// 	if kerrors.IsNotFound(err) {
+	// 		return types.Stack{}, errNotFound
+	// 	}
+	// 	return types.Stack{}, fmt.Errorf("unable to get stack %s: %s", id, err)
+	// }
 
 	// TODO: populate status
-	return ConvertFromKubeStack(kubeStack)
+	return types.Stack{}, fmt.Errorf("")
+	// FIXME
+	// return ConvertFromKubeStack(kubeStack)
 }
 
 // StackList lists all stacks.
 func (c *StacksBackend) StackList(_ context.Context, _ types.StackListOptions) ([]types.Stack, error) {
 	// Iterate over all namespaces. This assumes that the underlying
 	// coreV1Client has `namespace list` permissions.
-	nsResp, err := c.coreV1Client.Namespaces().List(metav1.ListOptions{})
-	if err != nil {
-		return []types.Stack{}, fmt.Errorf("unable to retrieve all namespaces: %s", err)
-	}
+	// nsResp, err := c.coreV1Client.Namespaces().List(metav1.ListOptions{})
+	// if err != nil {
+	// 	return []types.Stack{}, fmt.Errorf("unable to retrieve all namespaces: %s", err)
+	// }
 
 	// Aggregate stacks across all namespaces
 	// TODO: there's a race here in the event where a namespace was
 	// just deleted.
-	allStacks := []v1beta2.Stack{}
-	for _, ns := range nsResp.Items {
-		namespace := ns.Name
-		resp, err := c.composeClient.Stacks(namespace).List(metav1.ListOptions{})
-		if err != nil {
-			return []types.Stack{}, fmt.Errorf("unable to list stacks in namespace %s: %s", namespace, err)
-		}
-		allStacks = append(allStacks, resp.Items...)
-	}
+	// allStacks := []v1beta2.Stack{}
+	// for _, ns := range nsResp.Items {
+	// 	namespace := ns.Name
+	// 	resp, err := c.composeClient.Stacks(namespace).List(metav1.ListOptions{})
+	// 	if err != nil {
+	// 		return []types.Stack{}, fmt.Errorf("unable to list stacks in namespace %s: %s", namespace, err)
+	// 	}
+	// 	allStacks = append(allStacks, resp.Items...)
+	// }
 
 	// TODO: populate statuses
-	return ConvertFromKubeStacks(allStacks)
+	return []types.Stack{}, fmt.Errorf("")
+	// FIXME
+	// return ConvertFromKubeStacks(allStacks)
 }
 
 // StackUpdate updates a stack.
@@ -154,7 +162,9 @@ func (c *StacksBackend) StackUpdate(_ context.Context, id string, version types.
 		return errNotFound
 	}
 
-	kubeStack := FromStackSpec(spec)
+	kubeStack := &v1beta2.Stack{}
+	// FIXME
+	// kubeStack := FromStackSpec(spec)
 	kubeStack.ObjectMeta.ResourceVersion = fmt.Sprintf("%d", version.Index)
 
 	patchBytes, err := json.Marshal(kubeStack)

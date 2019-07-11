@@ -117,13 +117,14 @@ func (s *StacksRouter) getStack(ctx context.Context, id string) (stackPair, erro
 }
 
 // StackCreate creates a new stack.
-func (s *StacksRouter) StackCreate(ctx context.Context, stack types.StackCreate, options types.StackCreateOptions) (types.StackCreateResponse, error) {
-	backend, ok := s.backends[stack.Orchestrator]
+func (s *StacksRouter) StackCreate(ctx context.Context, spec types.StackSpec, options types.StackCreateOptions) (types.StackCreateResponse, error) {
+	var orchestrator types.OrchestratorChoice = types.OrchestratorSwarm
+	backend, ok := s.backends[orchestrator]
 	if !ok {
-		return types.StackCreateResponse{}, fmt.Errorf("invalid orchestrator choice %s", stack.Orchestrator)
+		return types.StackCreateResponse{}, fmt.Errorf("invalid orchestrator choice %s", orchestrator)
 	}
 
-	return backend.StackCreate(ctx, stack, options)
+	return backend.StackCreate(ctx, spec, options)
 }
 
 // StackInspect attempts to inspect a stack across all backends in parallel,
