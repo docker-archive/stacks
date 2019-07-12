@@ -13,7 +13,7 @@ import (
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/errdefs"
 
-	"github.com/docker/stacks/pkg/interfaces"
+	"github.com/docker/stacks/pkg/types"
 )
 
 // fakeReconcilerClient is a fake implementing the ReconcilerClient interface,
@@ -29,7 +29,7 @@ type fakeReconcilerClient struct {
 	totallyRandomIDBase int
 
 	// maps id -> stack
-	stacks map[string]*interfaces.SwarmStack
+	stacks map[string]*types.Stack
 	// maps name -> id
 	stacksByName map[string]string
 
@@ -46,15 +46,15 @@ var (
 
 func newFakeReconcilerClient() *fakeReconcilerClient {
 	return &fakeReconcilerClient{
-		stacks:         map[string]*interfaces.SwarmStack{},
+		stacks:         map[string]*types.Stack{},
 		stacksByName:   map[string]string{},
 		services:       map[string]*swarm.Service{},
 		servicesByName: map[string]string{},
 	}
 }
 
-// GetSwarmStack gets a SwarmStack
-func (f *fakeReconcilerClient) GetSwarmStack(idOrName string) (interfaces.SwarmStack, error) {
+// GetStack gets a Stack
+func (f *fakeReconcilerClient) GetStack(idOrName string) (types.Stack, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
@@ -62,11 +62,11 @@ func (f *fakeReconcilerClient) GetSwarmStack(idOrName string) (interfaces.SwarmS
 
 	stack, ok := f.stacks[id]
 	if !ok {
-		return interfaces.SwarmStack{}, notFound
+		return types.Stack{}, notFound
 	}
 
 	if err := causeAnError("get", stack.Spec.Annotations.Labels); err != nil {
-		return interfaces.SwarmStack{}, err
+		return types.Stack{}, err
 	}
 	return *stack, nil
 }
@@ -98,7 +98,7 @@ func (f *fakeReconcilerClient) GetServices(opts dockerTypes.ServiceListOptions) 
 	for _, service := range f.services {
 		// if we're filtering on stack ID, and this service doesn't match, then
 		// we should skip this service
-		if hasFilter && service.Spec.Annotations.Labels[interfaces.StackLabel] != stackID {
+		if hasFilter && service.Spec.Annotations.Labels[types.StackLabel] != stackID {
 			continue
 		}
 		// otherwise, we should append this service to the set
@@ -235,7 +235,7 @@ func getStackIDFromLabelFilter(args filters.Args) (string, bool) {
 	}
 
 	// make sure the key is StackLabel
-	if kvPair[0] != interfaces.StackLabel {
+	if kvPair[0] != types.StackLabel {
 		return "", false
 	}
 

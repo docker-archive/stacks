@@ -7,7 +7,6 @@ import (
 
 	"github.com/docker/docker/errdefs"
 
-	"github.com/docker/stacks/pkg/compose/loader"
 	"github.com/docker/stacks/pkg/types"
 )
 
@@ -44,18 +43,13 @@ func NewStackClient(optsFunc ...StackOptionFunc) *StackClient {
 	return c
 }
 
-// ParseComposeInput is a passthrough to the actual loader implementation.
-func (c *StackClient) ParseComposeInput(_ context.Context, input types.ComposeInput) (*types.StackCreate, error) {
-	return loader.ParseComposeInput(input)
-}
-
 // StackCreate creates a new stack.
-func (c *StackClient) StackCreate(_ context.Context, stack types.StackCreate, _ types.StackCreateOptions) (types.StackCreateResponse, error) {
+func (c *StackClient) StackCreate(_ context.Context, spec types.StackSpec, _ types.StackCreateOptions) (types.StackCreateResponse, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	newStack := types.Stack{
 		ID:   fmt.Sprintf("%d", c.idx),
-		Spec: stack.Spec,
+		Spec: spec,
 	}
 	c.idx++
 	c.stacks[newStack.ID] = newStack

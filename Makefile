@@ -5,10 +5,10 @@ E2E_IMAGE_NAME=stack-e2e
 TAG=latest # TODO work out versioning scheme
 TEST_SCOPE?=./...
 BUILD_ARGS= \
-    --build-arg ALPINE_BASE=alpine:3.8 \
-    --build-arg GOLANG_BASE=golang:1.11-alpine3.8
+    --build-arg ALPINE_BASE=alpine:3.10 \
+    --build-arg GOLANG_BASE=golang:1.12.6-alpine3.10
 
-build: generate
+build:
 	docker build $(BUILD_ARGS) -t $(ORG)/$(CONTROLLER_IMAGE_NAME):$(TAG) .
 
 test:
@@ -39,8 +39,6 @@ build-mocks:
 	mockgen -package=mocks github.com/docker/stacks/pkg/store ResourcesClient | sed s,github.com/docker/stacks/vendor/,,g > pkg/mocks/mock_resources_client.go
 	mockgen -package=mocks github.com/docker/compose-on-kubernetes/api/client/clientset/typed/compose/v1beta2 StackInterface,StacksGetter,ComposeV1beta2Interface | sed s,github.com/docker/stacks/vendor/,,g > pkg/mocks/mock_kubecompose_v1beta2.go
 	mockgen -package=mocks k8s.io/client-go/kubernetes/typed/core/v1 CoreV1Interface,NamespaceInterface | sed s,github.com/docker/stacks/vendor/,,g > pkg/mocks/mock_kubernetes_corev1.go
-
-generate: pkg/compose/schema/bindata.go
 
 pkg/compose/schema/bindata.go: pkg/compose/schema/data/*.json
 	docker build $(BUILD_ARGS) -t $(ORG)/$(CONTROLLER_IMAGE_NAME):build --target builder .

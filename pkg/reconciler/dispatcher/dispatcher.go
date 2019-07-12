@@ -6,9 +6,9 @@ import (
 	"github.com/docker/docker/api/types/events"
 	"github.com/sirupsen/logrus"
 
-	"github.com/docker/stacks/pkg/interfaces"
 	"github.com/docker/stacks/pkg/reconciler/notifier"
 	"github.com/docker/stacks/pkg/reconciler/reconciler"
+	"github.com/docker/stacks/pkg/types"
 )
 
 const (
@@ -75,7 +75,7 @@ func (d *dispatcher) Notify(kind, id string) {
 	defer d.mu.Unlock()
 	// TODO(dperny) implement
 	switch kind {
-	case interfaces.StackEventType:
+	case types.StackEventType:
 		d.pendingStacks[id] = struct{}{}
 	case events.NetworkEventType:
 		d.pendingNetworks[id] = struct{}{}
@@ -192,7 +192,7 @@ func (d *dispatcher) pickObject() (string, string) {
 		// it should be safe to delete from a map we're iterating over.
 		// especially considering we're not iterating any further.
 		delete(d.pendingStacks, stack)
-		return interfaces.StackEventType, stack
+		return types.StackEventType, stack
 	}
 	for nw := range d.pendingNetworks {
 		delete(d.pendingNetworks, nw)

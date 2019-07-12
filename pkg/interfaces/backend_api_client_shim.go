@@ -89,10 +89,10 @@ func (c *BackendAPIClientShim) UnsubscribeFromEvents(eventChan chan interface{})
 }
 
 // CreateStack creates a stack
-func (c *BackendAPIClientShim) CreateStack(create types.StackCreate) (types.StackCreateResponse, error) {
-	resp, err := c.StacksBackend.CreateStack(create)
+func (c *BackendAPIClientShim) CreateStack(create types.StackSpec) (types.StackCreateResponse, error) {
+	response, err := c.StacksBackend.CreateStack(create)
 	if err != nil {
-		return resp, fmt.Errorf("unable to create stack: %s", err)
+		return response, fmt.Errorf("unable to create stack: %s", err)
 	}
 
 	go func() {
@@ -101,13 +101,13 @@ func (c *BackendAPIClientShim) CreateStack(create types.StackCreate) (types.Stac
 			Type:   "stack",
 			Action: "create",
 			Actor: events.Actor{
-				ID: resp.ID,
+				ID: response.ID,
 			},
 		}
 		logrus.Debugf("wrote stack create event")
 	}()
 
-	return resp, err
+	return response, err
 }
 
 // UpdateStack updates a stack.

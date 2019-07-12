@@ -12,7 +12,6 @@ import (
 	events "github.com/docker/docker/api/types/events"
 	filters "github.com/docker/docker/api/types/filters"
 	swarm "github.com/docker/docker/api/types/swarm"
-	interfaces "github.com/docker/stacks/pkg/interfaces"
 	types0 "github.com/docker/stacks/pkg/types"
 	gomock "github.com/golang/mock/gomock"
 )
@@ -93,7 +92,7 @@ func (mr *MockBackendClientMockRecorder) CreateService(arg0, arg1, arg2 interfac
 }
 
 // CreateStack mocks base method
-func (m *MockBackendClient) CreateStack(arg0 types0.StackCreate) (types0.StackCreateResponse, error) {
+func (m *MockBackendClient) CreateStack(arg0 types0.StackSpec) (types0.StackCreateResponse, error) {
 	ret := m.ctrl.Call(m, "CreateStack", arg0)
 	ret0, _ := ret[0].(types0.StackCreateResponse)
 	ret1, _ := ret[1].(error)
@@ -262,19 +261,6 @@ func (mr *MockBackendClientMockRecorder) GetStack(arg0 interface{}) *gomock.Call
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetStack", reflect.TypeOf((*MockBackendClient)(nil).GetStack), arg0)
 }
 
-// GetSwarmStack mocks base method
-func (m *MockBackendClient) GetSwarmStack(arg0 string) (interfaces.SwarmStack, error) {
-	ret := m.ctrl.Call(m, "GetSwarmStack", arg0)
-	ret0, _ := ret[0].(interfaces.SwarmStack)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetSwarmStack indicates an expected call of GetSwarmStack
-func (mr *MockBackendClientMockRecorder) GetSwarmStack(arg0 interface{}) *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSwarmStack", reflect.TypeOf((*MockBackendClient)(nil).GetSwarmStack), arg0)
-}
-
 // GetTask mocks base method
 func (m *MockBackendClient) GetTask(arg0 string) (swarm.Task, error) {
 	ret := m.ctrl.Call(m, "GetTask", arg0)
@@ -326,32 +312,6 @@ func (m *MockBackendClient) ListStacks() ([]types0.Stack, error) {
 // ListStacks indicates an expected call of ListStacks
 func (mr *MockBackendClientMockRecorder) ListStacks() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListStacks", reflect.TypeOf((*MockBackendClient)(nil).ListStacks))
-}
-
-// ListSwarmStacks mocks base method
-func (m *MockBackendClient) ListSwarmStacks() ([]interfaces.SwarmStack, error) {
-	ret := m.ctrl.Call(m, "ListSwarmStacks")
-	ret0, _ := ret[0].([]interfaces.SwarmStack)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// ListSwarmStacks indicates an expected call of ListSwarmStacks
-func (mr *MockBackendClientMockRecorder) ListSwarmStacks() *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListSwarmStacks", reflect.TypeOf((*MockBackendClient)(nil).ListSwarmStacks))
-}
-
-// ParseComposeInput mocks base method
-func (m *MockBackendClient) ParseComposeInput(arg0 types0.ComposeInput) (*types0.StackCreate, error) {
-	ret := m.ctrl.Call(m, "ParseComposeInput", arg0)
-	ret0, _ := ret[0].(*types0.StackCreate)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// ParseComposeInput indicates an expected call of ParseComposeInput
-func (mr *MockBackendClientMockRecorder) ParseComposeInput(arg0 interface{}) *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ParseComposeInput", reflect.TypeOf((*MockBackendClient)(nil).ParseComposeInput), arg0)
 }
 
 // RemoveConfig mocks base method

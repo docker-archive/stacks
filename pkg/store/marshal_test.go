@@ -9,8 +9,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	composetypes "github.com/docker/stacks/pkg/compose/types"
-	"github.com/docker/stacks/pkg/interfaces"
 	"github.com/docker/stacks/pkg/types"
 )
 
@@ -32,27 +30,6 @@ func TestMarshalUnmarshal(t *testing.T) {
 	// not JSON marshalling. just add some canned data
 	stack := &types.Stack{
 		ID: "someID",
-		Version: types.Version{
-			Index: 1,
-		},
-		Spec: types.StackSpec{
-			Metadata: types.Metadata{
-				Name: "someName",
-				Labels: map[string]string{
-					"key": "value",
-				},
-			},
-			Services: composetypes.Services{
-				{
-					Name: "bar",
-				},
-			},
-			Collection: "something",
-		},
-		Orchestrator: types.OrchestratorSwarm,
-	}
-	swarmStack := &interfaces.SwarmStack{
-		ID: "someID",
 		Meta: swarm.Meta{
 			CreatedAt: ct,
 			UpdatedAt: ut,
@@ -60,7 +37,7 @@ func TestMarshalUnmarshal(t *testing.T) {
 				Index: 1,
 			},
 		},
-		Spec: interfaces.SwarmStackSpec{
+		Spec: types.StackSpec{
 			Annotations: swarm.Annotations{
 				Name: "someName",
 				Labels: map[string]string{
@@ -75,7 +52,7 @@ func TestMarshalUnmarshal(t *testing.T) {
 		},
 	}
 
-	msg, err := MarshalStacks(stack, swarmStack)
+	msg, err := MarshalStacks(stack)
 	require.NoError(t, err, "error marshalling stacks")
 
 	// now pack the message into a Resource object
@@ -95,8 +72,7 @@ func TestMarshalUnmarshal(t *testing.T) {
 	// doesn't work), we should only have 1 ServiceConfig or ServiceSpec in the
 	// stacks, else the order may get scrambled up and make this comparison
 	// difficult.
-	unstack, unswarm, err := UnmarshalStacks(resource)
+	unstack, err := UnmarshalStacks(resource)
 	require.NoError(t, err, "error unmarshalling stacks")
 	assert.Equal(t, stack, unstack)
-	assert.Equal(t, swarmStack, unswarm)
 }

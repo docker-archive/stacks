@@ -1,20 +1,37 @@
 package types
 
 import (
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/stacks/pkg/compose/types"
+	"github.com/docker/docker/api/types/swarm"
 )
 
-// Stack represents a runtime instantiation of a Docker Compose based application
-type Stack struct {
-	Version
-	Spec           StackSpec          `json:"spec"`
-	StackResources StackResources     `json:"stack_resources"`
-	Orchestrator   OrchestratorChoice `json:"orchestrator"`
-	Status         StackStatus        `json:"stack_status"`
+const (
+	// StackEventType is the value of Type in an events.Message for stacks
+	StackEventType = "stack"
+	// StackLabel is a label on objects indicating the stack that it belongs to
+	StackLabel = "com.docker.stacks.stack_id"
+)
 
-	// TODO - temporary (not in swagger)
+// Stack represents a Stack with Engine API types.
+type Stack struct {
 	ID string
+	swarm.Meta
+	Spec StackSpec
+}
+
+// StackSpec represents a StackSpec with Engine API types.
+type StackSpec struct {
+	Annotations swarm.Annotations
+	Services    []swarm.ServiceSpec
+	// Networks is a map of name -> types.NetworkCreate. It's like this because
+	// Networks don't have a Spec, they're defined in terms of the
+	// NetworkCreate type only.
+	Networks map[string]types.NetworkCreate
+	Secrets  []swarm.SecretSpec
+	Configs  []swarm.ConfigSpec
+	// There are no "Volumes" in a StackSpec -- Swarm has no concept of
+	// volumes
 }
 
 // StackCreateOptions is input to the Create operation for a Stack
@@ -37,12 +54,6 @@ type Version struct {
 	Index uint64 `json:",omitempty"`
 }
 
-// StackCreate is input to the Create operation for a Stack
-type StackCreate struct {
-	Spec         StackSpec          `json:"spec"`
-	Orchestrator OrchestratorChoice `json:"orchestrator"`
-}
-
 // Metadata contains metadata for a Stack.
 type Metadata struct {
 	Name   string
@@ -52,50 +63,6 @@ type Metadata struct {
 // StackList is the output for Stack listing
 type StackList struct {
 	Items []Stack `json:"items"`
-}
-
-// StackSpec defines the desired state of Stack
-type StackSpec struct {
-	Metadata
-	Services       types.Services                   `json:"services,omitempty"`
-	Secrets        map[string]types.SecretConfig    `json:"secrets,omitempty"`
-	Configs        map[string]types.ConfigObjConfig `json:"configs,omitempty"`
-	Networks       map[string]types.NetworkConfig   `json:"networks,omitempty"`
-	Volumes        map[string]types.VolumeConfig    `json:"volumes,omitempty"`
-	StackImage     string                           `json:"stack_image,omitempty"`
-	PropertyValues []string                         `json:"property_values,omitempty"`
-	Collection     string                           `json:"collection,omitempty"`
-}
-
-// StackResources links to the running instances of the StackSpec
-type StackResources struct {
-	Services map[string]StackResource `json:"services,omitempty"`
-	Configs  map[string]StackResource `json:"configs,omitempty"`
-	Secrets  map[string]StackResource `json:"secrets,omitempty"`
-	Networks map[string]StackResource `json:"networks,omitempty"`
-	Volumes  map[string]StackResource `json:"volumes,omitempty"`
-}
-
-// StackResource contains a link to a single instance of the spec
-// For example, when a Service is run on basic containers, the ID would
-// contain the container ID.  When the Service is running on Swarm the ID would be
-// a Swarm Service ID.  When mapped to kubernetes, it would map to a Deployment or
-// DaemonSet ID.
-type StackResource struct {
-	Orchestrator OrchestratorChoice `json:"orchestrator"`
-	Kind         string             `json:"kind"`
-	ID           string             `json:"id"`
-}
-
-// StackStatus defines the observed state of Stack
-type StackStatus struct {
-	Message       string `json:"message"`
-	Phase         string `json:"phase"`
-	OverallHealth string `json:"overall_health"`
-	// ServicesStatus contains the last known status of the service
-	// The service name is the key in the map.
-	ServicesStatus map[string]ServiceStatus `json:"services_status"`
-	LastUpdated    string                   `json:"last_updated"`
 }
 
 // ServiceStatus represents the latest known status of a service
@@ -113,17 +80,6 @@ type StackTaskList struct {
 	PastTasks    []StackTask `json:"past_tasks"`
 }
 
-// StackTask This contains a summary of the Stacks task
-type StackTask struct {
-	ID           string `json:"id"`
-	Name         string `json:"name"`
-	Image        string `json:"image"`
-	NodeID       string `json:"node_id"`
-	DesiredState string `json:"desired_state"`
-	CurrentState string `json:"current_state"`
-	Err          string `json:"err"`
-}
-
 // OrchestratorChoice This field specifies which orchestrator the stack is deployed on.
 type OrchestratorChoice string
 
@@ -138,9 +94,15 @@ const (
 	OrchestratorNone = "none"
 )
 
-// ComposeInput carries one or more compose files for parsing by the server
-type ComposeInput struct {
-	ComposeFiles []string `json:"compose_files"`
+// StackTask This contains a summary of the Stacks task
+type StackTask struct {
+	ID           string `json:"id"`
+	Name         string `json:"name"`
+	Image        string `json:"image"`
+	NodeID       string `json:"node_id"`
+	DesiredState string `json:"desired_state"`
+	CurrentState string `json:"current_state"`
+	Err          string `json:"err"`
 }
 
 // StackCreateResponse is the response type of the Create Stack

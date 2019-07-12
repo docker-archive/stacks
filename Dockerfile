@@ -19,12 +19,9 @@ RUN     go get -d github.com/mjibson/esc && \
 COPY . /go/src/github.com/docker/stacks
 WORKDIR /go/src/github.com/docker/stacks
 
-RUN go generate github.com/docker/stacks/pkg/compose/schema
-
 RUN echo "Building standalone runtime..."
 
-RUN go build -i ./e2e/... && \
-    go build -o bin/standalone ./cmd/standalone
+RUN go build -o bin/standalone ./cmd/standalone
 
 FROM builder as unit-test
 
@@ -33,11 +30,6 @@ RUN go test -coverpkg=./pkg/... -covermode=count -coverprofile=/cover.out -v $(g
 
 FROM builder as lint
 RUN gometalinter --config gometalinter.json ./...
-
-# End-to-end Integration Tests
-FROM builder as e2e
-RUN go test -c ./e2e/...
-ENTRYPOINT ["./e2e.test", "-test.v"]
 
 # Standalone server (for testing)
 FROM ${ALPINE_BASE} as standalone

@@ -7,28 +7,20 @@ import (
 
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/errdefs"
-	composeTypes "github.com/docker/stacks/pkg/compose/types"
-	"github.com/docker/stacks/pkg/types"
 
 	"github.com/stretchr/testify/require"
+
+	types "github.com/docker/stacks/pkg/types"
 )
 
-func generateFixtures(n int) []stackPair {
-	fixtures := make([]stackPair, n)
+func generateFixtures(n int) []types.Stack {
+	fixtures := make([]types.Stack, n)
 	return fixtures
 }
 
-func getTestSpecs(name, image string) (types.StackSpec, SwarmStackSpec) {
-	spec := types.StackSpec{
-		Services: []composeTypes.ServiceConfig{
-			{
-				Name:  name,
-				Image: image,
-			},
-		},
-	}
+func getTestSpecs(name, image string) types.StackSpec {
 
-	swarmSpec := SwarmStackSpec{
+	spec := types.StackSpec{
 		Services: []swarm.ServiceSpec{
 			{
 				Annotations: swarm.Annotations{
@@ -43,27 +35,24 @@ func getTestSpecs(name, image string) (types.StackSpec, SwarmStackSpec) {
 		},
 	}
 
-	return spec, swarmSpec
+	return spec
 }
 
-func getTestStacks(name, image string) (types.Stack, SwarmStack) {
-	spec, swarmSpec := getTestSpecs(name, image)
+func getTestStacks(name, image string) types.Stack {
+	stackSpec := getTestSpecs(name, image)
 	return types.Stack{
-			Orchestrator: types.OrchestratorSwarm,
-			Spec:         spec,
-		}, SwarmStack{
-			Spec: swarmSpec,
-		}
+		Spec: stackSpec,
+	}
 }
 
 func TestUpdateFakeStackStore(t *testing.T) {
 	require := require.New(t)
 	store := NewFakeStackStore()
 
-	stack1, swarmStack1 := getTestStacks("service1", "image1")
-	stack2, swarmStack2 := getTestStacks("service2", "image2")
+	stack1 := getTestStacks("service1", "image1")
+	stack2 := getTestStacks("service2", "image2")
 
-	id, err := store.AddStack(stack1, swarmStack1)
+	id, err := store.AddStack(stack1)
 	require.NoError(err)
 
 	stack, err := store.GetStack(id)
@@ -71,22 +60,13 @@ func TestUpdateFakeStackStore(t *testing.T) {
 	require.Equal(stack.ID, id)
 	require.True(reflect.DeepEqual(stack.Spec, stack1.Spec))
 
-	swarmStack, err := store.GetSwarmStack(id)
-	require.NoError(err)
-	require.Equal(swarmStack.ID, id)
-	require.True(reflect.DeepEqual(swarmStack.Spec, swarmStack1.Spec))
-
-	require.NoError(store.UpdateStack(id, stack2.Spec, swarmStack2.Spec, stack.Version.Index))
+	require.NoError(store.UpdateStack(id, stack2.Spec, stack.Version.Index))
 
 	stack, err = store.GetStack(id)
 	require.NoError(err)
 	require.Equal(stack.ID, id)
 	require.True(reflect.DeepEqual(stack.Spec, stack2.Spec))
 
-	swarmStack, err = store.GetSwarmStack(id)
-	require.NoError(err)
-	require.Equal(swarmStack.ID, id)
-	require.True(reflect.DeepEqual(swarmStack.Spec, swarmStack2.Spec))
 }
 
 func TestCRDFakeStackStore(t *testing.T) {
@@ -98,24 +78,15 @@ func TestCRDFakeStackStore(t *testing.T) {
 	require.NoError(err)
 	require.Empty(stacks)
 
-	swarmStacks, err := store.ListSwarmStacks()
-	require.NoError(err)
-	require.Empty(swarmStacks)
-
 	stack, err := store.GetStack("doesntexist")
 	require.Error(err)
 	require.True(errdefs.IsNotFound(err))
 	require.Empty(stack)
 
-	swarmStack, err := store.GetSwarmStack("doesntexist")
-	require.Error(err)
-	require.True(errdefs.IsNotFound(err))
-	require.Empty(swarmStack)
-
 	// Add three items
 	fixtures := generateFixtures(4)
 	for i := 0; i < 3; i++ {
-		id, err := store.AddStack(fixtures[i].Stack, fixtures[i].SwarmStack)
+		id, err := store.AddStack(fixtures[i])
 		require.NoError(err, fmt.Sprintf("failed to add fixture %d", i))
 		require.NotNil(id)
 	}
@@ -136,50 +107,24 @@ func TestCRDFakeStackStore(t *testing.T) {
 		require.Contains(found, id, fmt.Sprintf("ID %s not found", id))
 	}
 
-	swarmStacks, err = store.ListSwarmStacks()
-	require.NoError(err)
-	require.Len(swarmStacks, 3)
-
-	found = make(map[string]struct{})
-	for _, stack := range swarmStacks {
-		found[stack.ID] = struct{}{}
-	}
-	require.Len(found, 3)
-
-	for _, id := range []string{"1", "2", "3"} {
-		require.Contains(found, id, fmt.Sprintf("ID %s not found", id))
-	}
-
 	stack, err = store.GetStack("1")
 	require.NoError(err)
 	require.Equal(stack.ID, "1")
-
-	swarmStack, err = store.GetSwarmStack("1")
-	require.NoError(err)
-	require.Equal(swarmStack.ID, "1")
 
 	stack, err = store.GetStack("3")
 	require.NoError(err)
 	require.Equal(stack.ID, "3")
 
-	swarmStack, err = store.GetSwarmStack("3")
-	require.NoError(err)
-	require.Equal(swarmStack.ID, "3")
-
 	// Remove a stack
 	require.NoError(store.DeleteStack("2"))
 
 	// Add a new stack
-	id, err := store.AddStack(fixtures[3].Stack, fixtures[3].SwarmStack)
+	id, err := store.AddStack(fixtures[3])
 	require.NoError(err)
 	require.NotNil(id)
 
 	// Ensure that the deleted stack is not present
 	stack, err = store.GetStack("2")
-	require.Error(err)
-	require.True(errdefs.IsNotFound(err))
-
-	swarmStack, err = store.GetSwarmStack("2")
 	require.Error(err)
 	require.True(errdefs.IsNotFound(err))
 
@@ -191,21 +136,6 @@ func TestCRDFakeStackStore(t *testing.T) {
 
 	found = make(map[string]struct{})
 	for _, stack := range stacks {
-		found[stack.ID] = struct{}{}
-	}
-	require.Len(found, 3)
-
-	for _, name := range []string{"1", "3", "4"} {
-		require.Contains(found, name, fmt.Sprintf("name %s not found", name))
-	}
-
-	swarmStacks, err = store.ListSwarmStacks()
-	require.NoError(err)
-	require.NotNil(swarmStacks)
-	require.Len(swarmStacks, 3)
-
-	found = make(map[string]struct{})
-	for _, stack := range swarmStacks {
 		found[stack.ID] = struct{}{}
 	}
 	require.Len(found, 3)

@@ -4,37 +4,33 @@ import (
 	"context"
 	"testing"
 
+	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/errdefs"
 	"github.com/stretchr/testify/require"
 	"gotest.tools/assert"
 
-	composeTypes "github.com/docker/stacks/pkg/compose/types"
 	"github.com/docker/stacks/pkg/types"
 )
 
-var stackCreate = types.StackCreate{
-	Orchestrator: types.OrchestratorSwarm,
-	Spec: types.StackSpec{
-		Metadata: types.Metadata{
-			Name: "teststack",
-			Labels: map[string]string{
-				"key": "value",
-			},
+var stackCreate = types.StackSpec{
+	Annotations: swarm.Annotations{
+		Name: "teststack",
+		Labels: map[string]string{
+			"key": "value",
 		},
-		Services: []composeTypes.ServiceConfig{
-			{
-				Name:  "service1",
-				Image: "image1",
+	},
+	Services: []swarm.ServiceSpec{
+		{
+			Annotations: swarm.Annotations{
+				Name: "service1",
+			},
+			TaskTemplate: swarm.TaskSpec{
+				ContainerSpec: &swarm.ContainerSpec{
+					Image: "image1",
+				},
 			},
 		},
 	},
-}
-
-func TestFakeStackClientParseComposeInput(t *testing.T) {
-	c := NewStackClient()
-	stackCreate, err := c.ParseComposeInput(context.TODO(), types.ComposeInput{})
-	require.NoError(t, err)
-	require.Nil(t, stackCreate)
 }
 
 func TestFakeStackClientUpdateOutOfSequence(t *testing.T) {
@@ -48,10 +44,10 @@ func TestFakeStackClientUpdateOutOfSequence(t *testing.T) {
 	require.NoError(err)
 
 	stackSpec := stack.Spec
-	stackSpec.Services[0].Image = "newimage"
-	require.NoError(c.StackUpdate(ctx, resp.ID, stack.Version, stackSpec, types.StackUpdateOptions{}))
+	stackSpec.Services[0].TaskTemplate.ContainerSpec.Image = "newimage"
+	require.NoError(c.StackUpdate(ctx, resp.ID, types.Version{Index: stack.Meta.Version.Index}, stackSpec, types.StackUpdateOptions{}))
 
-	err = c.StackUpdate(ctx, resp.ID, stack.Version, stackSpec, types.StackUpdateOptions{})
+	err = c.StackUpdate(ctx, resp.ID, types.Version{Index: stack.Meta.Version.Index}, stackSpec, types.StackUpdateOptions{})
 	require.Error(err)
 	require.Contains(err.Error(), "update out of sequence")
 }
@@ -70,19 +66,19 @@ func TestFakeStackClientCRUD(t *testing.T) {
 	stacks, err := c.StackList(ctx, types.StackListOptions{})
 	require.NoError(err)
 	require.Len(stacks, 1)
-	require.Equal(stacks[0].Spec, stackCreate.Spec)
+	require.Equal(stacks[0].Spec, stackCreate)
 	require.Equal(stacks[0].ID, resp.ID)
 
 	// Inspect
 	stack, err := c.StackInspect(ctx, resp.ID)
 	require.NoError(err)
-	require.Equal(stack.Spec, stackCreate.Spec)
+	require.Equal(stack.Spec, stackCreate)
 	require.Equal(stack.ID, resp.ID)
 
 	// Update
 	stackSpec := stack.Spec
-	stackSpec.Services[0].Image = "newimage"
-	require.NoError(c.StackUpdate(ctx, resp.ID, stack.Version, stackSpec, types.StackUpdateOptions{}))
+	stackSpec.Services[0].TaskTemplate.ContainerSpec.Image = "newimage"
+	require.NoError(c.StackUpdate(ctx, resp.ID, types.Version{Index: stack.Meta.Version.Index}, stackSpec, types.StackUpdateOptions{}))
 	stack, err = c.StackInspect(ctx, resp.ID)
 	require.NoError(err)
 	assert.DeepEqual(t, stackSpec, stack.Spec)

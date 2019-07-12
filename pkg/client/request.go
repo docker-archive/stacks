@@ -28,12 +28,6 @@ type serverResponse struct {
 	reqURL     *url.URL
 }
 
-// head sends an http request to the docker API using the method HEAD.
-// nolint: unused
-func (cli *Client) head(ctx context.Context, path string, query url.Values, headers map[string][]string) (serverResponse, error) {
-	return cli.sendRequest(ctx, "HEAD", path, query, nil, headers)
-}
-
 // get sends an http request to the docker API using the method GET with a specific Go context.
 func (cli *Client) get(ctx context.Context, path string, query url.Values, headers map[string][]string) (serverResponse, error) {
 	return cli.sendRequest(ctx, "GET", path, query, nil, headers)
@@ -46,27 +40,6 @@ func (cli *Client) post(ctx context.Context, path string, query url.Values, obj 
 		return serverResponse{}, err
 	}
 	return cli.sendRequest(ctx, "POST", path, query, body, headers)
-}
-
-// nolint: unused
-func (cli *Client) postRaw(ctx context.Context, path string, query url.Values, body io.Reader, headers map[string][]string) (serverResponse, error) {
-	return cli.sendRequest(ctx, "POST", path, query, body, headers)
-}
-
-// put sends an http request to the docker API using the method PUT.
-// nolint: unused
-func (cli *Client) put(ctx context.Context, path string, query url.Values, obj interface{}, headers map[string][]string) (serverResponse, error) {
-	body, headers, err := encodeBody(obj, headers)
-	if err != nil {
-		return serverResponse{}, err
-	}
-	return cli.sendRequest(ctx, "PUT", path, query, body, headers)
-}
-
-// putRaw sends an http request to the docker API using the method PUT.
-// nolint: unused
-func (cli *Client) putRaw(ctx context.Context, path string, query url.Values, body io.Reader, headers map[string][]string) (serverResponse, error) {
-	return cli.sendRequest(ctx, "PUT", path, query, body, headers)
 }
 
 // delete sends an http request to the docker API using the method DELETE.

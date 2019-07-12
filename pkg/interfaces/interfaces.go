@@ -15,18 +15,11 @@ import (
 // StacksBackend is the backend handler for Stacks within the engine.
 // It is consumed by the API handlers, and by the Reconciler.
 type StacksBackend interface {
-	CreateStack(types.StackCreate) (types.StackCreateResponse, error)
+	CreateStack(spec types.StackSpec) (types.StackCreateResponse, error)
 	GetStack(id string) (types.Stack, error)
 	ListStacks() ([]types.Stack, error)
 	UpdateStack(id string, spec types.StackSpec, version uint64) error
 	DeleteStack(id string) error
-
-	// The following operations are only used by the Reconciler and not
-	// exposed via the Stacks API.
-	GetSwarmStack(id string) (SwarmStack, error)
-	ListSwarmStacks() ([]SwarmStack, error)
-
-	ParseComposeInput(input types.ComposeInput) (*types.StackCreate, error)
 }
 
 // SwarmResourceBackend is a subset of the swarm.Backend interface,
@@ -81,13 +74,12 @@ type BackendClient interface {
 // to perform CRUD operations for all objects required by the Stacks
 // Controller.
 type StackStore interface {
-	AddStack(types.Stack, SwarmStack) (string, error)
-	UpdateStack(string, types.StackSpec, SwarmStackSpec, uint64) error
+	AddStack(types.Stack) (string, error)
+	UpdateStack(string, types.StackSpec, uint64) error
+
 	DeleteStack(string) error
 
 	GetStack(id string) (types.Stack, error)
-	GetSwarmStack(id string) (SwarmStack, error)
 
 	ListStacks() ([]types.Stack, error)
-	ListSwarmStacks() ([]SwarmStack, error)
 }
