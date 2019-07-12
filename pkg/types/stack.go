@@ -13,18 +13,14 @@ const (
 	StackLabel = "com.docker.stacks.stack_id"
 )
 
-// Stack represents a Stack with all of its elements converted to Engine
-// API types.
-// NOTE: Stack is only used internally for reconciliation of Swarm
-// stacks and is never exposed via the API.
+// Stack represents a Stack with Engine API types.
 type Stack struct {
 	ID string
 	swarm.Meta
 	Spec StackSpec
 }
 
-// StackSpec represents a StackSpec with all of its elements converted to
-// Engine API types.
+// StackSpec represents a StackSpec with Engine API types.
 type StackSpec struct {
 	Annotations swarm.Annotations
 	Services    []swarm.ServiceSpec
