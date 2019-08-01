@@ -12,8 +12,8 @@ import (
 	"github.com/docker/stacks/pkg/types"
 )
 
-// TestMarshalUnmarshal tests that pass a pair of stack objects to
-// MarshalStacks and then passing the resulting proto.Message to
+// TestMarshalUnmarshal tests that pass StackSpec object to
+// MarshalStackSpec and then passing the resulting proto.Message to
 // UnmarshalStacks results in getting the same objects back out.
 func TestMarshalUnmarshal(t *testing.T) {
 	// so, this is gonna seem stupid as hell, but the marshaling of time in
@@ -52,8 +52,12 @@ func TestMarshalUnmarshal(t *testing.T) {
 		},
 	}
 
-	msg, err := MarshalStacks(stack)
+	msg, err := MarshalStackSpec(&stack.Spec)
 	require.NoError(t, err, "error marshalling stacks")
+
+	unstackSpec, err := UnmarshalStackSpec(msg)
+	require.NoError(t, err, "error unmarshalling stacks")
+	assert.Equal(t, stack.Spec, *unstackSpec)
 
 	// now pack the message into a Resource object
 	resource := &api.Resource{
@@ -72,7 +76,7 @@ func TestMarshalUnmarshal(t *testing.T) {
 	// doesn't work), we should only have 1 ServiceConfig or ServiceSpec in the
 	// stacks, else the order may get scrambled up and make this comparison
 	// difficult.
-	unstack, err := UnmarshalStacks(resource)
-	require.NoError(t, err, "error unmarshalling stacks")
-	assert.Equal(t, stack, unstack)
+	unstack, err := ConstructStack(resource)
+	require.NoError(t, err, "error constructing stacks")
+	assert.Equal(t, stack, &unstack)
 }

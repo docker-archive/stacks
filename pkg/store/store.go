@@ -22,13 +22,13 @@ func New(client ResourcesClient) *StackStore {
 
 // AddStack creates a new Stack object in the swarmkit data store. It returns
 // the ID of the new object if successful, or an error otherwise.
-func (s *StackStore) AddStack(st types.Stack) (string, error) {
-	return AddStack(context.TODO(), s.client, st)
+func (s *StackStore) AddStack(stackSpec types.StackSpec) (string, error) {
+	return AddStack(context.TODO(), s.client, stackSpec)
 }
 
 // UpdateStack updates an existing Stack object
-func (s *StackStore) UpdateStack(id string, st types.StackSpec, version uint64) error {
-	return UpdateStack(context.TODO(), s.client, id, st, version)
+func (s *StackStore) UpdateStack(id string, stackSpec types.StackSpec, version uint64) error {
+	return UpdateStack(context.TODO(), s.client, id, stackSpec, version)
 }
 
 // DeleteStack removes the stacks with the given ID.

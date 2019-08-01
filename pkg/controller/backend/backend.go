@@ -33,11 +33,8 @@ func (b *DefaultStacksBackend) CreateStack(stackSpec types.StackSpec) (types.Sta
 	if stackSpec.Annotations.Name == "" {
 		return types.StackCreateResponse{}, fmt.Errorf("StackSpec contains no name")
 	}
-	stack := types.Stack{
-		Spec: stackSpec,
-	}
 
-	id, err := b.stackStore.AddStack(stack)
+	id, err := b.stackStore.AddStack(stackSpec)
 	if err != nil {
 		return types.StackCreateResponse{}, fmt.Errorf("unable to store stack: %s", err)
 	}

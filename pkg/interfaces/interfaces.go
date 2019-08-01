@@ -74,7 +74,7 @@ type BackendClient interface {
 // to perform CRUD operations for all objects required by the Stacks
 // Controller.
 type StackStore interface {
-	AddStack(types.Stack) (string, error)
+	AddStack(types.StackSpec) (string, error)
 	UpdateStack(string, types.StackSpec, uint64) error
 
 	DeleteStack(string) error

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/errdefs"
 
 	"github.com/docker/stacks/pkg/types"
@@ -34,12 +35,19 @@ func IsErrNotFound(err error) bool {
 }
 
 // AddStack adds a stack to the store.
-func (s *FakeStackStore) AddStack(stack types.Stack) (string, error) {
+func (s *FakeStackStore) AddStack(stackSpec types.StackSpec) (string, error) {
 	s.Lock()
 	defer s.Unlock()
 
-	stack.ID = fmt.Sprintf("%d", s.curID)
-	stack.Version.Index++
+	stack := types.Stack{
+		ID: fmt.Sprintf("%d", s.curID),
+		Meta: swarm.Meta{
+			Version: swarm.Version{
+				Index: 1,
+			},
+		},
+		Spec: stackSpec,
+	}
 
 	s.stacks[stack.ID] = stack
 
@@ -57,7 +65,7 @@ func (s *FakeStackStore) getStack(id string) (types.Stack, error) {
 }
 
 // UpdateStack updates the stack in the store.
-func (s *FakeStackStore) UpdateStack(id string, spec types.StackSpec, version uint64) error {
+func (s *FakeStackStore) UpdateStack(id string, stackSpec types.StackSpec, version uint64) error {
 	s.Lock()
 	defer s.Unlock()
 
@@ -71,7 +79,7 @@ func (s *FakeStackStore) UpdateStack(id string, spec types.StackSpec, version ui
 	}
 	existingStack.Version.Index++
 
-	existingStack.Spec = spec
+	existingStack.Spec = stackSpec
 	s.stacks[id] = existingStack
 	return nil
 }

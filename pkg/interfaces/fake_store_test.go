@@ -52,7 +52,7 @@ func TestUpdateFakeStackStore(t *testing.T) {
 	stack1 := getTestStacks("service1", "image1")
 	stack2 := getTestStacks("service2", "image2")
 
-	id, err := store.AddStack(stack1)
+	id, err := store.AddStack(stack1.Spec)
 	require.NoError(err)
 
 	stack, err := store.GetStack(id)
@@ -86,7 +86,7 @@ func TestCRDFakeStackStore(t *testing.T) {
 	// Add three items
 	fixtures := generateFixtures(4)
 	for i := 0; i < 3; i++ {
-		id, err := store.AddStack(fixtures[i])
+		id, err := store.AddStack(fixtures[i].Spec)
 		require.NoError(err, fmt.Sprintf("failed to add fixture %d", i))
 		require.NotNil(id)
 	}
@@ -119,7 +119,7 @@ func TestCRDFakeStackStore(t *testing.T) {
 	require.NoError(store.DeleteStack("2"))
 
 	// Add a new stack
-	id, err := store.AddStack(fixtures[3])
+	id, err := store.AddStack(fixtures[3].Spec)
 	require.NoError(err)
 	require.NotNil(id)
 
