@@ -74,7 +74,7 @@ var _ = Describe("StackStore", func() {
 			timeObj, err = gogotypes.TimestampFromProto(timeProto)
 			Expect(err).ToNot(HaveOccurred())
 
-			stackSpecAny, err := MarshalStackSpec(stackSpec)
+			runtimeStackAny, err := MarshalStackSpec(stackSpec)
 			Expect(err).ToNot(HaveOccurred())
 			// we're allowed to use MarshalStackSpec in this as part of the test
 			// code and not the code-under-test, because its correctness is
@@ -92,7 +92,7 @@ var _ = Describe("StackStore", func() {
 						Index: 1,
 					},
 				},
-				Payload: stackSpecAny,
+				Payload: runtimeStackAny,
 			}
 		})
 
@@ -245,24 +245,26 @@ var _ = Describe("StackStore", func() {
 			)
 			BeforeEach(func() {
 				for i := 0; i < numListedResources; i++ {
-					stSpec := types.StackSpec{
-						Annotations: swarm.Annotations{
-							Name: fmt.Sprintf("stack_%v", i),
-							Labels: map[string]string{
-								"key": "value",
+					st := types.Stack{
+						Spec: types.StackSpec{
+							Annotations: swarm.Annotations{
+								Name: fmt.Sprintf("stack_%v", i),
+								Labels: map[string]string{
+									"key": "value",
+								},
 							},
-						},
-						Services: []swarm.ServiceSpec{
-							{
-								Annotations: swarm.Annotations{
-									Name: fmt.Sprintf("svc_%v", i),
+							Services: []swarm.ServiceSpec{
+								{
+									Annotations: swarm.Annotations{
+										Name: fmt.Sprintf("svc_%v", i),
+									},
 								},
 							},
 						},
 					}
 
 					// marshal the stacks
-					any, err := MarshalStackSpec(&stSpec)
+					any, err := MarshalStackSpec(&st.Spec)
 					Expect(err).ToNot(HaveOccurred())
 
 					res := &swarmapi.Resource{
@@ -275,8 +277,8 @@ var _ = Describe("StackStore", func() {
 							UpdatedAt: timeProto,
 						},
 						Annotations: swarmapi.Annotations{
-							Name:   stSpec.Annotations.Name,
-							Labels: stSpec.Annotations.Labels,
+							Name:   st.Spec.Annotations.Name,
+							Labels: st.Spec.Annotations.Labels,
 						},
 						Kind:    StackResourceKind,
 						Payload: any,

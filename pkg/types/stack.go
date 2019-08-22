@@ -54,30 +54,9 @@ type Version struct {
 	Index uint64 `json:",omitempty"`
 }
 
-// Metadata contains metadata for a Stack.
-type Metadata struct {
-	Name   string
-	Labels map[string]string
-}
-
 // StackList is the output for Stack listing
 type StackList struct {
 	Items []Stack `json:"items"`
-}
-
-// ServiceStatus represents the latest known status of a service
-type ServiceStatus struct {
-	// DesiredTasks represents the expected number of running tasks
-	// given the current service spec settings, and number of nodes
-	// in the cluster that satisfy those constraints.
-	DesiredTasks uint64 `json:"desired_tasks"`
-	RunningTasks uint64 `json:"running_tasks"`
-}
-
-// StackTaskList contains a summary of the underlying tasks that make up this Stack
-type StackTaskList struct {
-	CurrentTasks []StackTask `json:"current_tasks"`
-	PastTasks    []StackTask `json:"past_tasks"`
 }
 
 // OrchestratorChoice This field specifies which orchestrator the stack is deployed on.

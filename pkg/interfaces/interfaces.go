@@ -1,6 +1,7 @@
 package interfaces
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/docker/docker/api/server/router/network"
@@ -82,4 +83,26 @@ type StackStore interface {
 	GetStack(id string) (types.Stack, error)
 
 	ListStacks() ([]types.Stack, error)
+}
+
+// SnapshotStack - a stored version of a stack with types.StackSpec and ID's of created Resources
+type SnapshotStack struct {
+	SnapshotResource
+	CurrentSpec types.StackSpec
+	Services    []SnapshotResource
+	Networks    []SnapshotResource
+	Secrets     []SnapshotResource
+	Configs     []SnapshotResource
+}
+
+// SnapshotResource - identifying information of a created Resource
+type SnapshotResource struct {
+	ID string
+	swarm.Meta
+	Name string
+}
+
+// StackLabelArg constructs the filters.KeyValuePair for API usage
+func StackLabelArg(stackID string) filters.KeyValuePair {
+	return filters.Arg("label", fmt.Sprintf("%s=%s", types.StackLabel, stackID))
 }
