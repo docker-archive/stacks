@@ -226,7 +226,7 @@ func TestSpecifiedErrorsFakeConfigStore(t *testing.T) {
 	id, err = store.CreateConfig(fixtures[8].Spec)
 	require.NoError(err)
 
-	rawConfig := store.DirectGet(id)
+	rawConfig := store.InternalGetConfig(id)
 	store.MarkInputForError("SpecifiedError", &rawConfig.Spec)
 
 	err = store.RemoveConfig(id)
@@ -242,13 +242,13 @@ func TestSpecifiedErrorsFakeConfigStore(t *testing.T) {
 	require.True(err == FakeUnimplemented)
 
 	// Perform a little raw API test coverage
-	pointer := store.DirectDelete(id)
+	pointer := store.InternalDeleteConfig(id)
 	require.True(pointer == rawConfig)
 
-	pointer = store.DirectDelete(id)
+	pointer = store.InternalDeleteConfig(id)
 	require.Nil(pointer)
 
-	pointer = store.DirectGet(id)
+	pointer = store.InternalGetConfig(id)
 	require.Nil(pointer)
 
 }
@@ -319,11 +319,11 @@ func TestCRDFakeConfigStore(t *testing.T) {
 	// Remove second config again
 	require.Error(store.RemoveConfig(configs[1].ID))
 
-	configsPointers := store.DirectAll(nil)
+	configsPointers := store.InternalQueryConfigs(nil)
 	require.NotEmpty(configsPointers)
 
 	idFunction := func(i *swarm.Config) interface{} { return i }
-	configsPointers = store.DirectAll(idFunction)
+	configsPointers = store.InternalQueryConfigs(idFunction)
 	require.NotEmpty(configsPointers)
 
 	// Assert we can list the three items and fetch them individually

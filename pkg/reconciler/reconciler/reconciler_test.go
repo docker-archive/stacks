@@ -203,7 +203,7 @@ var _ = Describe("Reconciler", func() {
 				Expect(err).ToNot(HaveOccurred())
 			})
 			It("should add a mapping of the service IDs to the stack", func() {
-				for _, serviceResource := range f.FakeServiceStore.DirectAll(nil) {
+				for _, serviceResource := range f.FakeServiceStore.InternalQueryServices(nil) {
 					Expect(r.cli.GetService(serviceResource.(*swarm.Service).ID, interfaces.DefaultGetServiceArg2)).ToNot(BeNil())
 				}
 			})

@@ -210,7 +210,7 @@ func (f *FakeServiceStore) RemoveService(idOrName string) error {
 		return err
 	}
 
-	f.DirectDelete(id)
+	f.InternalDeleteService(id)
 
 	return nil
 }
@@ -268,42 +268,44 @@ func (f *FakeServiceStore) MarkInputForError(errorKey string, input interface{},
 	}
 }
 
-// DirectAdd adds swarm.Service to storage without preconditions
-func (f *FakeServiceStore) DirectAdd(id string, iface interface{}) {
-	var service *swarm.Service = iface.(*swarm.Service)
+// InternalAddService adds swarm.Service to storage without preconditions
+func (f *FakeServiceStore) InternalAddService(id string, service *swarm.Service) {
 	f.services[id] = service
 	f.servicesByName[service.Spec.Annotations.Name] = id
 }
 
-// DirectGet retrieves swarm.Service or nil from storage without preconditions
-func (f *FakeServiceStore) DirectGet(id string) interface{} {
+// InternalGetService retrieves swarm.Service or nil from storage without preconditions
+func (f *FakeServiceStore) InternalGetService(id string) *swarm.Service {
 	service, ok := f.services[id]
 	if !ok {
-		return &swarm.Service{}
+		return nil
 	}
 	return service
 }
 
-// DirectAll retrieves all swarm.Service from storage while applying a transform
-func (f *FakeServiceStore) DirectAll(transform func(interface{}) interface{}) []interface{} {
-	result := make([]interface{}, 0, len(f.services))
+// InternalQueryServices retrieves all swarm.Service from storage while applying a transform
+func (f *FakeServiceStore) InternalQueryServices(transform func(service *swarm.Service) interface{}) []interface{} {
+	result := make([]interface{}, 0)
 
 	for _, key := range f.SortedIDs() {
-		item := f.services[key]
+		item := f.InternalGetService(key)
 		if transform == nil {
 			result = append(result, item)
 		} else {
-			result = append(result, transform(item))
+			view := transform(item)
+			if view != nil {
+				result = append(result, view)
+			}
 		}
 	}
 	return result
 }
 
-// DirectDelete removes swarm.Service from storage without preconditions
-func (f *FakeServiceStore) DirectDelete(id string) interface{} {
+// InternalDeleteService removes swarm.Service from storage without preconditions
+func (f *FakeServiceStore) InternalDeleteService(id string) *swarm.Service {
 	service, ok := f.services[id]
 	if !ok {
-		return &swarm.Service{}
+		return nil
 	}
 	delete(f.services, id)
 	delete(f.servicesByName, service.Spec.Annotations.Name)

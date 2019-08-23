@@ -264,41 +264,45 @@ func (f *FakeSecretStore) MarkInputForError(errorKey string, input interface{}, 
 	}
 }
 
-// DirectAdd adds swarm.SecretSpec to storage without preconditions
-func (f *FakeSecretStore) DirectAdd(id string, iface interface{}) {
-	var secret *swarm.Secret = iface.(*swarm.Secret)
+// InternalAddSecret adds swarm.SecretSpec to storage without preconditions
+func (f *FakeSecretStore) InternalAddSecret(id string, secret *swarm.Secret) {
 	f.secrets[id] = secret
 	f.secretsByName[secret.Spec.Annotations.Name] = id
 }
 
-// DirectGet retrieves swarm.SecretSpec or nil from storage without preconditions
-func (f *FakeSecretStore) DirectGet(id string) interface{} {
+// InternalGetSecret retrieves swarm.SecretSpec or nil from storage without preconditions
+func (f *FakeSecretStore) InternalGetSecret(id string) *swarm.Secret {
 	secret, ok := f.secrets[id]
 
 	if !ok {
-		return &swarm.Secret{}
+		return nil
 	}
 	return secret
 }
 
-// DirectAll retrieves all swarm.SecretSpec from storage while applying a transform
-func (f *FakeSecretStore) DirectAll(transform func(interface{}) interface{}) []interface{} {
-	result := make([]interface{}, 0, len(f.secrets))
-	for _, item := range f.secrets {
+// InternalQuerySecrets retrieves all swarm.SecretSpec from storage while applying a transform
+func (f *FakeSecretStore) InternalQuerySecrets(transform func(*swarm.Secret) interface{}) []interface{} {
+	result := make([]interface{}, 0)
+
+	for _, key := range f.SortedIDs() {
+		item := f.InternalGetSecret(key)
 		if transform == nil {
 			result = append(result, item)
 		} else {
-			result = append(result, transform(item))
+			view := transform(item)
+			if view != nil {
+				result = append(result, view)
+			}
 		}
 	}
 	return result
 }
 
-// DirectDelete removes swarm.SecretSpec from storage without preconditions
-func (f *FakeSecretStore) DirectDelete(id string) interface{} {
+// InternalDeleteSecret removes swarm.SecretSpec from storage without preconditions
+func (f *FakeSecretStore) InternalDeleteSecret(id string) *swarm.Secret {
 	secret, ok := f.secrets[id]
 	if !ok {
-		return &swarm.Secret{}
+		return nil
 	}
 	delete(f.secrets, id)
 	delete(f.secretsByName, secret.Spec.Annotations.Name)

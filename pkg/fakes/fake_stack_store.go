@@ -16,14 +16,6 @@ import (
 	"github.com/docker/stacks/pkg/types"
 )
 
-// FakeStackStoreAPI is a temporary interface while the code changes
-type FakeStackStoreAPI interface {
-	interfaces.StackStore
-	FakeFeatures
-	UpdateSnapshotStack(id string, snapshot interfaces.SnapshotStack, version uint64) error
-	GetSnapshotStack(id string) (*interfaces.SnapshotStack, error)
-}
-
 // FakeStackStore stores stacks
 type FakeStackStore struct {
 	stacks map[string]*interfaces.SnapshotStack
@@ -279,40 +271,43 @@ func (s *FakeStackStore) MarkInputForError(errorKey string, input interface{}, o
 	}
 }
 
-// DirectAdd adds types.Stack to storage without preconditions
-func (s *FakeStackStore) DirectAdd(id string, iface interface{}) {
-	snapshot := iface.(*interfaces.SnapshotStack)
+// InternalAddStack adds types.Stack to storage without preconditions
+func (s *FakeStackStore) InternalAddStack(id string, snapshot *interfaces.SnapshotStack) {
 	s.stacks[id] = snapshot
 }
 
-// DirectGet retrieves types.Stack or nil from storage without preconditions
-func (s *FakeStackStore) DirectGet(id string) interface{} {
+// InternalGetStack retrieves types.Stack or nil from storage without preconditions
+func (s *FakeStackStore) InternalGetStack(id string) *interfaces.SnapshotStack {
 	stack, ok := s.stacks[id]
 	if !ok {
-		return &interfaces.SnapshotStack{}
+		return nil
 	}
 	return stack
 }
 
-// DirectAll retrieves all types.Stack from storage while applying a transform
-func (s *FakeStackStore) DirectAll(transform func(interface{}) interface{}) []interface{} {
-	result := make([]interface{}, 0, len(s.stacks))
+// InternalQueryStacks retrieves all types.Stack from storage while applying a transform
+func (s *FakeStackStore) InternalQueryStacks(transform func(*interfaces.SnapshotStack) interface{}) []interface{} {
+	result := make([]interface{}, 0)
+
 	for _, key := range s.SortedIDs() {
-		item := s.stacks[key]
+		item := s.InternalGetStack(key)
 		if transform == nil {
 			result = append(result, item)
 		} else {
-			result = append(result, transform(item))
+			view := transform(item)
+			if view != nil {
+				result = append(result, view)
+			}
 		}
 	}
 	return result
 }
 
-// DirectDelete removes types.Stack from storage without preconditions
-func (s *FakeStackStore) DirectDelete(id string) interface{} {
+// InternalDeleteStack removes types.Stack from storage without preconditions
+func (s *FakeStackStore) InternalDeleteStack(id string) *interfaces.SnapshotStack {
 	snapshot, ok := s.stacks[id]
 	if !ok {
-		return &interfaces.SnapshotStack{}
+		return nil
 	}
 	delete(s.stacks, id)
 	return snapshot

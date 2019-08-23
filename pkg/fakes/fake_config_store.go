@@ -158,7 +158,7 @@ func (f *FakeConfigStore) CreateConfig(spec swarm.ConfigSpec) (string, error) {
 		Spec: *copied,
 	}
 
-	f.DirectAdd(config.ID, config)
+	f.InternalAddConfig(config.ID, config)
 
 	return config.ID, nil
 }
@@ -212,7 +212,7 @@ func (f *FakeConfigStore) RemoveConfig(idOrName string) error {
 		return err
 	}
 
-	f.DirectDelete(id)
+	f.InternalDeleteConfig(id)
 
 	return nil
 }
@@ -266,14 +266,14 @@ func (f *FakeConfigStore) MarkInputForError(errorKey string, input interface{}, 
 	}
 }
 
-// DirectAdd adds swarm.Config to storage without preconditions
-func (f *FakeConfigStore) DirectAdd(id string, config *swarm.Config) {
+// InternalAddConfig adds swarm.Config to storage without preconditions
+func (f *FakeConfigStore) InternalAddConfig(id string, config *swarm.Config) {
 	f.configs[id] = config
 	f.configsByName[config.Spec.Annotations.Name] = id
 }
 
-// DirectGet retrieves swarm.Config or nil from storage without preconditions
-func (f *FakeConfigStore) DirectGet(id string) *swarm.Config {
+// InternalGetConfig retrieves swarm.Config or nil from storage without preconditions
+func (f *FakeConfigStore) InternalGetConfig(id string) *swarm.Config {
 	config, ok := f.configs[id]
 	if !ok {
 		return nil
@@ -281,23 +281,26 @@ func (f *FakeConfigStore) DirectGet(id string) *swarm.Config {
 	return config
 }
 
-// DirectAll retrieves all swarm.Config from storage while applying a transform
-func (f *FakeConfigStore) DirectAll(transform func(*swarm.Config) interface{}) []interface{} {
-	result := make([]interface{}, 0, len(f.configs))
+// InternalQueryConfigs retrieves all swarm.Config from storage while applying a transform
+func (f *FakeConfigStore) InternalQueryConfigs(transform func(*swarm.Config) interface{}) []interface{} {
+	result := make([]interface{}, 0)
 
 	for _, key := range f.SortedIDs() {
-		item := f.DirectGet(key)
+		item := f.InternalGetConfig(key)
 		if transform == nil {
 			result = append(result, item)
 		} else {
-			result = append(result, transform(item))
+			view := transform(item)
+			if view != nil {
+				result = append(result, view)
+			}
 		}
 	}
 	return result
 }
 
-// DirectDelete removes swarm.Config from storage without preconditions
-func (f *FakeConfigStore) DirectDelete(id string) *swarm.Config {
+// InternalDeleteConfig removes swarm.Config from storage without preconditions
+func (f *FakeConfigStore) InternalDeleteConfig(id string) *swarm.Config {
 	config, ok := f.configs[id]
 	if !ok {
 		return nil

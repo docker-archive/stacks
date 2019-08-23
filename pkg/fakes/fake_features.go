@@ -10,15 +10,6 @@ import (
 	"github.com/docker/stacks/pkg/types"
 )
 
-// FakeFeatures contains composable test feature APIs
-type FakeFeatures interface {
-	SortedIDs() []string
-	SpecifyError(errorKey string, err error)
-	SpecifyKeyPrefix(KeyPrefix string)
-	MarkInputForError(errorKey string, input interface{}, ops ...string)
-	constructErrorMark(operation string) string
-}
-
 // error definitions to reuse
 var (
 	FakeNotFound      = errdefs.NotFound(errors.New("service not found"))

@@ -277,40 +277,44 @@ func (f *FakeNetworkStore) MarkInputForError(errorKey string, input interface{},
 	}
 }
 
-// DirectAdd adds dockerTypes.NetworkResource to storage without preconditions
-func (f *FakeNetworkStore) DirectAdd(id string, iface interface{}) {
-	var network *dockerTypes.NetworkResource = iface.(*dockerTypes.NetworkResource)
+// InternalAddNetwork adds dockerTypes.NetworkResource to storage without preconditions
+func (f *FakeNetworkStore) InternalAddNetwork(id string, network *dockerTypes.NetworkResource) {
 	f.networks[id] = network
 	f.networksByName[network.Name] = id
 }
 
-// DirectGet retrieves dockerTypes.NetworkResource or nil from storage without preconditions
-func (f *FakeNetworkStore) DirectGet(id string) interface{} {
+// InternalGetNetwork retrieves dockerTypes.NetworkResource or nil from storage without preconditions
+func (f *FakeNetworkStore) InternalGetNetwork(id string) *dockerTypes.NetworkResource {
 	network, ok := f.networks[id]
 	if !ok {
-		return &dockerTypes.NetworkResource{}
+		return nil
 	}
 	return network
 }
 
-// DirectAll retrieves all dockerTypes.NetworkResource from storage while applying a transform
-func (f *FakeNetworkStore) DirectAll(transform func(interface{}) interface{}) []interface{} {
-	result := make([]interface{}, 0, len(f.networks))
-	for _, item := range f.networks {
+// InternalQueryNetworks retrieves all dockerTypes.NetworkResource from storage while applying a transform
+func (f *FakeNetworkStore) InternalQueryNetworks(transform func(*dockerTypes.NetworkResource) interface{}) []interface{} {
+	result := make([]interface{}, 0)
+
+	for _, key := range f.SortedIDs() {
+		item := f.InternalGetNetwork(key)
 		if transform == nil {
 			result = append(result, item)
 		} else {
-			result = append(result, transform(item))
+			view := transform(item)
+			if view != nil {
+				result = append(result, view)
+			}
 		}
 	}
 	return result
 }
 
-// DirectDelete removes dockerTypes.NetworkResource from storage without preconditions
-func (f *FakeNetworkStore) DirectDelete(id string) interface{} {
+// InternalDeleteNetwork removes dockerTypes.NetworkResource from storage without preconditions
+func (f *FakeNetworkStore) InternalDeleteNetwork(id string) *dockerTypes.NetworkResource {
 	network, ok := f.networks[id]
 	if !ok {
-		return &dockerTypes.NetworkResource{}
+		return nil
 	}
 	delete(f.networks, id)
 	delete(f.networksByName, network.Name)
