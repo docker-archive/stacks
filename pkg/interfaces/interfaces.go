@@ -28,31 +28,53 @@ type StacksBackend interface {
 // methods required to validate, provision and update manipulate Swarm
 // stacks and their referenced resources.
 type SwarmResourceBackend interface {
-	network.ClusterBackend
-
 	// Info isn't actually in the swarm.Backend interface, but it is defined on
 	// the Cluster object, which provides the rest of the implementation
 	Info() swarm.Info
-
-	// The following methods are part of the swarm.Backend interface
 	GetNode(id string) (swarm.Node, error)
+	GetTasks(dockerTypes.TaskListOptions) ([]swarm.Task, error)
+	GetTask(string) (swarm.Task, error)
+}
+
+// SwarmNetworkBackend is a subset of the swarm.Backend interface,
+// combined with the network.ClusterBackend interface. It includes all
+// methods required to validate, provision and update manipulate Swarm
+// Networks and their referenced resources.
+type SwarmNetworkBackend interface {
+	network.ClusterBackend
+}
+
+// SwarmServiceBackend is a subset of the swarm.Backend interface,
+// It includes all methods required to validate, provision and
+// update manipulate Swarm Services and their referenced resources.
+type SwarmServiceBackend interface {
 	GetServices(dockerTypes.ServiceListOptions) ([]swarm.Service, error)
 	GetService(idOrName string, insertDefaults bool) (swarm.Service, error)
 	CreateService(swarm.ServiceSpec, string, bool) (*dockerTypes.ServiceCreateResponse, error)
 	UpdateService(string, uint64, swarm.ServiceSpec, dockerTypes.ServiceUpdateOptions, bool) (*dockerTypes.ServiceUpdateResponse, error)
 	RemoveService(string) error
-	GetTasks(dockerTypes.TaskListOptions) ([]swarm.Task, error)
-	GetTask(string) (swarm.Task, error)
-	GetSecrets(opts dockerTypes.SecretListOptions) ([]swarm.Secret, error)
-	CreateSecret(s swarm.SecretSpec) (string, error)
-	RemoveSecret(idOrName string) error
-	GetSecret(id string) (swarm.Secret, error)
-	UpdateSecret(idOrName string, version uint64, spec swarm.SecretSpec) error
+}
+
+// SwarmConfigBackend is a subset of the swarm.Backend interface,
+// It includes all methods required to validate, provision and
+// update manipulate Swarm Configs and their referenced resources.
+type SwarmConfigBackend interface {
 	GetConfigs(opts dockerTypes.ConfigListOptions) ([]swarm.Config, error)
 	CreateConfig(s swarm.ConfigSpec) (string, error)
 	RemoveConfig(id string) error
 	GetConfig(id string) (swarm.Config, error)
 	UpdateConfig(idOrName string, version uint64, spec swarm.ConfigSpec) error
+}
+
+// SwarmSecretBackend is a subset of the swarm.Backend interface,
+// It includes all methods required to validate, provision and
+// update manipulate Swarm Secrets and their referenced resources.
+type SwarmSecretBackend interface {
+	GetSecrets(opts dockerTypes.SecretListOptions) ([]swarm.Secret, error)
+	CreateSecret(s swarm.SecretSpec) (string, error)
+	RemoveSecret(idOrName string) error
+	GetSecret(id string) (swarm.Secret, error)
+	UpdateSecret(idOrName string, version uint64, spec swarm.SecretSpec) error
 }
 
 // BackendClient is the full interface used by the Stacks Reconciler to
@@ -64,6 +86,10 @@ type BackendClient interface {
 	StacksBackend
 
 	SwarmResourceBackend
+	SwarmNetworkBackend
+	SwarmConfigBackend
+	SwarmSecretBackend
+	SwarmServiceBackend
 
 	// SubscribeToEvents and UnsubscribeFromEvents are part of the
 	// system.Backend interface.

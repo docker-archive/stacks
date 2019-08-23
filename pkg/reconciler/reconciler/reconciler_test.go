@@ -145,8 +145,6 @@ var _ = Describe("Reconciler", func() {
 	})
 
 	BeforeEach(func() {
-		// TODO(dperny): in this initial revision of tests, i'm building the
-		// reconciler by hand, because i don't yet have a mock client to use
 		r = newReconciler(notifier, f)
 	})
 
@@ -186,7 +184,7 @@ var _ = Describe("Reconciler", func() {
 		})
 
 		JustBeforeEach(func() {
-			createResp, err = f.CreateStack(stackFixture.Spec)
+			createResp, err = r.cli.CreateStack(stackFixture.Spec)
 			localStackID = createResp.ID
 
 			// this test handles all ReconcileStack cases, so its pretty
@@ -206,7 +204,7 @@ var _ = Describe("Reconciler", func() {
 			})
 			It("should add a mapping of the service IDs to the stack", func() {
 				for _, serviceResource := range f.FakeServiceStore.DirectAll(nil) {
-					Expect(f.GetService(serviceResource.(*swarm.Service).ID, interfaces.DefaultGetServiceArg2)).ToNot(BeNil())
+					Expect(r.cli.GetService(serviceResource.(*swarm.Service).ID, interfaces.DefaultGetServiceArg2)).ToNot(BeNil())
 				}
 			})
 			When("resource creation fails", func() {
@@ -223,7 +221,7 @@ var _ = Describe("Reconciler", func() {
 
 		When("a stack does not exist to be retrieved by the client", func() {
 			BeforeEach(func() {
-				f.DeleteStack(localStackID)
+				r.cli.DeleteStack(localStackID)
 			})
 			It("should return no error", func() {
 				// this is because if we returned an error when the stack was
@@ -248,12 +246,12 @@ var _ = Describe("Reconciler", func() {
 		When("a service cannot be retrieved for some reason", func() {
 			BeforeEach(func() {
 				// create the service
-				resp, _ := f.CreateService(stackFixture.Spec.Services[0],
+				resp, _ := r.cli.CreateService(stackFixture.Spec.Services[0],
 					interfaces.DefaultCreateServiceArg2,
 					interfaces.DefaultCreateServiceArg3)
 				// get the service from the fakeReconcilerClient directly, so
 				// we get the pointer
-				service, _ := f.GetService(resp.ID, false)
+				service, _ := r.cli.GetService(resp.ID, false)
 				f.FakeServiceStore.MarkInputForError("unavailable", &service.Spec)
 				f.FakeServiceStore.SpecifyError("unavailable", fakes.FakeUnavailable)
 			})
@@ -261,7 +259,7 @@ var _ = Describe("Reconciler", func() {
 
 		When("a service for a stack already exist", func() {
 			BeforeEach(func() {
-				resp, _ := f.CreateService(stackFixture.Spec.Services[0],
+				resp, _ := r.cli.CreateService(stackFixture.Spec.Services[0],
 					interfaces.DefaultCreateServiceArg2,
 					interfaces.DefaultCreateServiceArg3)
 				serviceID = resp.ID
@@ -285,7 +283,7 @@ var _ = Describe("Reconciler", func() {
 			//
 			// Performing reconcile one more time to include the doesnotbelong service
 			JustBeforeEach(func() {
-				resp, _ := f.CreateService(
+				resp, _ := r.cli.CreateService(
 					swarm.ServiceSpec{
 						Annotations: swarm.Annotations{
 							Name: "doesnotbelong",
@@ -306,7 +304,7 @@ var _ = Describe("Reconciler", func() {
 				Expect(err).ToNot(HaveOccurred())
 			})
 			It("should notify the ObjectChangeNotifier of the service", func() {
-				var x, xerr = f.GetService(serviceID, interfaces.DefaultGetServiceArg2)
+				var x, xerr = r.cli.GetService(serviceID, interfaces.DefaultGetServiceArg2)
 				Expect(xerr).ToNot(HaveOccurred())
 				Expect(x.Spec.Annotations.Name).To(Equal("doesnotbelong"))
 				Expect(notifier.objects).To(ContainElement(obj("service", x.ID)))
@@ -345,7 +343,7 @@ var _ = Describe("Reconciler", func() {
 			// Create some services belonging to a stack
 
 			for _, spec := range specs {
-				_, err := f.CreateService(spec, interfaces.DefaultCreateServiceArg2, interfaces.DefaultCreateServiceArg3)
+				_, err := r.cli.CreateService(spec, interfaces.DefaultCreateServiceArg2, interfaces.DefaultCreateServiceArg3)
 				Expect(err).ToNot(HaveOccurred())
 			}
 		})
@@ -357,8 +355,8 @@ var _ = Describe("Reconciler", func() {
 			Expect(err).ToNot(HaveOccurred())
 		})
 		It("should notify the that all of the resources belonging to that stack should reconciled", func() {
-			var x, xerr = f.GetService("service1", interfaces.DefaultGetServiceArg2)
-			var y, yerr = f.GetService("service3", interfaces.DefaultGetServiceArg2)
+			var x, xerr = r.cli.GetService("service1", interfaces.DefaultGetServiceArg2)
+			var y, yerr = r.cli.GetService("service3", interfaces.DefaultGetServiceArg2)
 			Expect(xerr).ToNot(HaveOccurred())
 			Expect(yerr).ToNot(HaveOccurred())
 			Expect(notifier.objects).Should(ConsistOf(
@@ -377,7 +375,7 @@ var _ = Describe("Reconciler", func() {
 				localErr   error
 			)
 			BeforeEach(func() {
-				createResp, err = f.CreateStack(stackFixture.Spec)
+				createResp, err = r.cli.CreateStack(stackFixture.Spec)
 				localStackID = createResp.ID
 			})
 			JustBeforeEach(func() {
@@ -387,7 +385,7 @@ var _ = Describe("Reconciler", func() {
 			When("the service does not belong to a stack", func() {
 				BeforeEach(func() {
 					// create a service with no StackLabel
-					resp, createErr := f.CreateService(swarm.ServiceSpec{
+					resp, createErr := r.cli.CreateService(swarm.ServiceSpec{
 						Annotations: swarm.Annotations{
 							Name: "foo",
 						},
@@ -414,7 +412,7 @@ var _ = Describe("Reconciler", func() {
 							Labels: map[string]string{types.StackLabel: localStackID},
 						},
 					}
-					resp, createErr := f.CreateService(spec,
+					resp, createErr := r.cli.CreateService(spec,
 						interfaces.DefaultCreateServiceArg2,
 						interfaces.DefaultCreateServiceArg3)
 					Expect(createErr).ToNot(HaveOccurred())
@@ -424,7 +422,7 @@ var _ = Describe("Reconciler", func() {
 				When("the stack has been deleted", func() {
 					It("should delete the service", func() {
 						// There should be no services in the fake anymore.
-						Expect(f.GetServices(dockerTypes.ServiceListOptions{})).To(HaveLen(0))
+						Expect(r.cli.GetServices(dockerTypes.ServiceListOptions{})).To(HaveLen(0))
 					})
 				})
 
@@ -436,7 +434,7 @@ var _ = Describe("Reconciler", func() {
 							"klaatu":         "barada nikto",
 						}
 						stackFixture.Spec.Services = append(stackFixture.Spec.Services, differentSpec)
-						localErr = f.UpdateStack(localStackID, stackFixture.Spec, 1)
+						localErr = r.cli.UpdateStack(localStackID, stackFixture.Spec, 1)
 					})
 					It("should return no error", func() {
 						Expect(localErr).To(BeNil())
@@ -446,7 +444,7 @@ var _ = Describe("Reconciler", func() {
 					})
 					It("should update the resource's spec", func() {
 						Expect(f).To(ConsistOfServices(stackFixture.Spec.Services))
-						var x, xerr = f.GetService(id, interfaces.DefaultGetServiceArg2)
+						var x, xerr = r.cli.GetService(id, interfaces.DefaultGetServiceArg2)
 						Expect(xerr).ToNot(HaveOccurred())
 						Expect(x.Meta.Version.Index).To(Equal(uint64(2)))
 					})
@@ -464,7 +462,7 @@ var _ = Describe("Reconciler", func() {
 				When("the service does match the stack's definition", func() {
 					BeforeEach(func() {
 						stackFixture.Spec.Services = append(stackFixture.Spec.Services, spec)
-						localErr = f.UpdateStack(localStackID, stackFixture.Spec, 1)
+						localErr = r.cli.UpdateStack(localStackID, stackFixture.Spec, 1)
 					})
 					It("should return no error", func() {
 						Expect(localErr).To(BeNil())
@@ -474,7 +472,7 @@ var _ = Describe("Reconciler", func() {
 					})
 					It("should perform no updates", func() {
 						Expect(f).To(ConsistOfServices(stackFixture.Spec.Services))
-						var x, xerr = f.GetService(id, interfaces.DefaultGetServiceArg2)
+						var x, xerr = r.cli.GetService(id, interfaces.DefaultGetServiceArg2)
 						Expect(xerr).ToNot(HaveOccurred())
 						Expect(x.Meta.Version.Index).To(Equal(uint64(1)))
 					})

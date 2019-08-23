@@ -3,10 +3,15 @@ package reconciler
 // this file contains fakes used to test the reconciler
 
 import (
+	"fmt"
+	"time"
+
 	dockerTypes "github.com/docker/docker/api/types"
+
+	"github.com/docker/docker/api/types/events"
+	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/swarm"
 
-	"github.com/docker/stacks/pkg/controller/backend"
 	"github.com/docker/stacks/pkg/fakes"
 	"github.com/docker/stacks/pkg/interfaces"
 	"github.com/docker/stacks/pkg/types"
@@ -18,78 +23,62 @@ import (
 // notably, it has a half-ass implementation of Filters that only works for
 // stack ID labels.
 type fakeReconcilerClient struct {
-	backend.DefaultStacksBackend
-
-	// alias to fake store features
-	FakeStackStore fakes.FakeStackStoreAPI
-
-	// alias to fake services features
-	FakeServiceStore *fakes.FakeServiceStore
-
-	// alias to fake secrets features
-	FakeSecretStore fakes.FakeFeatures
-
-	// alias to fake configs features
-	FakeConfigStore fakes.FakeFeatures
-
-	// alias to fake networks features
-	FakeNetworkStore fakes.FakeFeatures
+	fakes.FakeStackStore
+	fakes.FakeServiceStore
+	fakes.FakeSecretStore
+	fakes.FakeConfigStore
+	fakes.FakeNetworkStore
 }
 
-type fakeSwarmBackend struct {
-	*fakes.FakeServiceStore
-	*fakes.FakeSecretStore
-	*fakes.FakeConfigStore
-	*fakes.FakeNetworkStore
-}
-
-func (*fakeSwarmBackend) Info() swarm.Info {
+func (*fakeReconcilerClient) Info() swarm.Info {
 	return swarm.Info{}
 }
 
-func (*fakeSwarmBackend) GetNode(id string) (swarm.Node, error) {
+func (*fakeReconcilerClient) GetNode(id string) (swarm.Node, error) {
 	return swarm.Node{}, fakes.FakeUnimplemented
 }
 
-func (*fakeSwarmBackend) GetTasks(dockerTypes.TaskListOptions) ([]swarm.Task, error) {
+func (*fakeReconcilerClient) GetTasks(dockerTypes.TaskListOptions) ([]swarm.Task, error) {
 	return []swarm.Task{}, fakes.FakeUnimplemented
 }
 
-func (*fakeSwarmBackend) GetTask(string) (swarm.Task, error) {
+func (*fakeReconcilerClient) GetTask(string) (swarm.Task, error) {
 	return swarm.Task{}, fakes.FakeUnimplemented
+}
+
+func (*fakeReconcilerClient) SubscribeToEvents(since, until time.Time, ef filters.Args) ([]events.Message, chan interface{}) {
+	return nil, nil
+}
+
+func (*fakeReconcilerClient) UnsubscribeFromEvents(events chan interface{}) {
+
 }
 
 func newFakeReconcilerClient() *fakeReconcilerClient {
 
-	fakeStacks := fakes.NewFakeStackStore()
-	fakeServices := fakes.NewFakeServiceStore()
-	fakeSecrets := fakes.NewFakeSecretStore()
-	fakeConfigs := fakes.NewFakeConfigStore()
-	fakeNetworks := fakes.NewFakeNetworkStore()
-
-	fakeBackend := fakeSwarmBackend{
-		FakeServiceStore: fakeServices,
-		FakeSecretStore:  fakeSecrets,
-		FakeConfigStore:  fakeConfigs,
-		FakeNetworkStore: fakeNetworks,
-	}
-
-	defaultBackend := backend.NewDefaultStacksBackend(fakeStacks, &fakeBackend)
-
 	return &fakeReconcilerClient{
-		DefaultStacksBackend: *defaultBackend,
-		FakeStackStore:       fakeStacks,
-		FakeServiceStore:     fakeServices,
-		FakeSecretStore:      fakeSecrets,
-		FakeConfigStore:      fakeConfigs,
-		FakeNetworkStore:     fakeNetworks,
+		FakeStackStore:   *fakes.NewFakeStackStore(),
+		FakeServiceStore: *fakes.NewFakeServiceStore(),
+		FakeSecretStore:  *fakes.NewFakeSecretStore(),
+		FakeConfigStore:  *fakes.NewFakeConfigStore(),
+		FakeNetworkStore: *fakes.NewFakeNetworkStore(),
 	}
 }
 
 // CreateStack creates a new stack if the stack is valid.
 func (f *fakeReconcilerClient) CreateStack(stackSpec types.StackSpec) (types.StackCreateResponse, error) {
-	resp, err := f.DefaultStacksBackend.CreateStack(stackSpec)
-	return resp, err
+	if stackSpec.Annotations.Name == "" {
+		return types.StackCreateResponse{}, fmt.Errorf("StackSpec contains no name")
+	}
+
+	id, err := f.FakeStackStore.AddStack(stackSpec)
+	if err != nil {
+		return types.StackCreateResponse{}, fmt.Errorf("unable to store stack: %s", err)
+	}
+
+	return types.StackCreateResponse{
+		ID: id,
+	}, err
 }
 
 // nolint: gocyclo
