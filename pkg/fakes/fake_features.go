@@ -1,4 +1,4 @@
-package interfaces
+package fakes
 
 import (
 	"errors"
@@ -25,13 +25,6 @@ var (
 	FakeInvalidArg    = errdefs.InvalidParameter(errors.New("not valid"))
 	FakeUnavailable   = errdefs.Unavailable(errors.New("not available"))
 	FakeUnimplemented = errdefs.Unavailable(errors.New("UNIMPLEMENTED"))
-)
-
-// temporary constant arguments in order to track their uses
-const (
-	DefaultGetServiceArg2    = false
-	DefaultCreateServiceArg2 = ""
-	DefaultCreateServiceArg3 = false
 )
 
 // FakeGetStackIDFromLabelFilter takes a filters.Args and determines if it includes

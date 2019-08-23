@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/docker/docker/api/types/swarm"
-	"github.com/docker/stacks/pkg/interfaces"
+	"github.com/docker/stacks/pkg/fakes"
 	"github.com/docker/stacks/pkg/mocks"
 	"github.com/docker/stacks/pkg/types"
 )
@@ -19,7 +19,7 @@ func TestStacksBackendUpdateOutOfSequence(t *testing.T) {
 	require := require.New(t)
 	ctrl := gomock.NewController(t)
 	backendClient := mocks.NewMockBackendClient(ctrl)
-	b := NewDefaultStacksBackend(interfaces.NewFakeStackStore(), backendClient)
+	b := NewDefaultStacksBackend(fakes.NewFakeStackStore(), backendClient)
 
 	// Create a stack with a valid StackCreate
 	response, err := b.CreateStack(types.StackSpec{
@@ -52,7 +52,7 @@ func TestStacksBackendInvalidCreate(t *testing.T) {
 	require := require.New(t)
 	ctrl := gomock.NewController(t)
 	backendClient := mocks.NewMockBackendClient(ctrl)
-	b := NewDefaultStacksBackend(interfaces.NewFakeStackStore(), backendClient)
+	b := NewDefaultStacksBackend(fakes.NewFakeStackStore(), backendClient)
 
 	_, err := b.CreateStack(types.StackSpec{})
 	require.Error(err)
@@ -68,7 +68,7 @@ func TestStacksBackendCRUD(t *testing.T) {
 	require := require.New(t)
 	ctrl := gomock.NewController(t)
 	backendClient := mocks.NewMockBackendClient(ctrl)
-	b := NewDefaultStacksBackend(interfaces.NewFakeStackStore(), backendClient)
+	b := NewDefaultStacksBackend(fakes.NewFakeStackStore(), backendClient)
 
 	// Create a stack with a valid StackCreate
 	service1Spec := swarm.ServiceSpec{

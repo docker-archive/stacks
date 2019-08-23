@@ -1,4 +1,4 @@
-package interfaces
+package fakes
 
 import (
 	"errors"
@@ -12,20 +12,21 @@ import (
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/errdefs"
 
+	"github.com/docker/stacks/pkg/interfaces"
 	"github.com/docker/stacks/pkg/types"
 )
 
 // FakeStackStoreAPI is a temporary interface while the code changes
 type FakeStackStoreAPI interface {
-	StackStore
+	interfaces.StackStore
 	FakeFeatures
-	UpdateSnapshotStack(id string, snapshot SnapshotStack, version uint64) error
-	GetSnapshotStack(id string) (*SnapshotStack, error)
+	UpdateSnapshotStack(id string, snapshot interfaces.SnapshotStack, version uint64) error
+	GetSnapshotStack(id string) (*interfaces.SnapshotStack, error)
 }
 
 // FakeStackStore stores stacks
 type FakeStackStore struct {
-	stacks map[string]*SnapshotStack
+	stacks map[string]*interfaces.SnapshotStack
 	sync.RWMutex
 	curID       int
 	labelErrors map[string]error
@@ -51,7 +52,7 @@ func CopyStackSpec(spec types.StackSpec) (types.StackSpec, error) {
 	return *iface.(*types.StackSpec), nil
 }
 
-func fakeConstructStack(snapshotStack *SnapshotStack) types.Stack {
+func fakeConstructStack(snapshotStack *interfaces.SnapshotStack) types.Stack {
 
 	stackSpec, _ := CopyStackSpec(snapshotStack.CurrentSpec)
 
@@ -66,7 +67,7 @@ func fakeConstructStack(snapshotStack *SnapshotStack) types.Stack {
 // NewFakeStackStore creates a new FakeStackStore
 func NewFakeStackStore() *FakeStackStore {
 	return &FakeStackStore{
-		stacks: make(map[string]*SnapshotStack),
+		stacks: make(map[string]*interfaces.SnapshotStack),
 		// Don't start from ID 0, to catch any uninitialized types.
 		curID:       1,
 		labelErrors: map[string]error{},
@@ -82,8 +83,8 @@ func (s *FakeStackStore) AddStack(stackSpec types.StackSpec) (string, error) {
 
 	stackSpec, _ = CopyStackSpec(stackSpec)
 
-	snapshot := &SnapshotStack{
-		SnapshotResource: SnapshotResource{
+	snapshot := &interfaces.SnapshotStack{
+		SnapshotResource: interfaces.SnapshotResource{
 			ID: fmt.Sprintf("%s|%04d", s.keyPrefix, s.curID),
 			Meta: swarm.Meta{
 				Version: swarm.Version{
@@ -100,7 +101,7 @@ func (s *FakeStackStore) AddStack(stackSpec types.StackSpec) (string, error) {
 	return snapshot.ID, s.causeAnError(nil, "AddStack", stackSpec)
 }
 
-func (s *FakeStackStore) getSnapshotStack(id string) (*SnapshotStack, error) {
+func (s *FakeStackStore) getSnapshotStack(id string) (*interfaces.SnapshotStack, error) {
 	snapshot, ok := s.stacks[id]
 	if !ok {
 		return nil, errNotFound
@@ -165,7 +166,7 @@ func (s *FakeStackStore) UpdateStack(id string, stackSpec types.StackSpec, versi
 }
 
 // UpdateSnapshotStack updates the snapshot in the store.
-func (s *FakeStackStore) UpdateSnapshotStack(id string, snapshot SnapshotStack, version uint64) error {
+func (s *FakeStackStore) UpdateSnapshotStack(id string, snapshot interfaces.SnapshotStack, version uint64) error {
 	s.Lock()
 	defer s.Unlock()
 
@@ -207,7 +208,7 @@ func (s *FakeStackStore) GetStack(id string) (types.Stack, error) {
 }
 
 // GetSnapshotStack retrieves a single stack from the store.
-func (s *FakeStackStore) GetSnapshotStack(id string) (*SnapshotStack, error) {
+func (s *FakeStackStore) GetSnapshotStack(id string) (*interfaces.SnapshotStack, error) {
 	s.RLock()
 	defer s.RUnlock()
 	snapshot, err := s.getSnapshotStack(id)
@@ -280,7 +281,7 @@ func (s *FakeStackStore) MarkInputForError(errorKey string, input interface{}, o
 
 // DirectAdd adds types.Stack to storage without preconditions
 func (s *FakeStackStore) DirectAdd(id string, iface interface{}) {
-	snapshot := iface.(*SnapshotStack)
+	snapshot := iface.(*interfaces.SnapshotStack)
 	s.stacks[id] = snapshot
 }
 
@@ -288,7 +289,7 @@ func (s *FakeStackStore) DirectAdd(id string, iface interface{}) {
 func (s *FakeStackStore) DirectGet(id string) interface{} {
 	stack, ok := s.stacks[id]
 	if !ok {
-		return &SnapshotStack{}
+		return &interfaces.SnapshotStack{}
 	}
 	return stack
 }
@@ -311,7 +312,7 @@ func (s *FakeStackStore) DirectAll(transform func(interface{}) interface{}) []in
 func (s *FakeStackStore) DirectDelete(id string) interface{} {
 	snapshot, ok := s.stacks[id]
 	if !ok {
-		return &SnapshotStack{}
+		return &interfaces.SnapshotStack{}
 	}
 	delete(s.stacks, id)
 	return snapshot

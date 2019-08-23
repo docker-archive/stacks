@@ -7,6 +7,7 @@ import (
 	"github.com/docker/docker/api/types/swarm"
 
 	"github.com/docker/stacks/pkg/controller/backend"
+	"github.com/docker/stacks/pkg/fakes"
 	"github.com/docker/stacks/pkg/interfaces"
 	"github.com/docker/stacks/pkg/types"
 )
@@ -20,26 +21,26 @@ type fakeReconcilerClient struct {
 	backend.DefaultStacksBackend
 
 	// alias to fake store features
-	FakeStackStore interfaces.FakeStackStoreAPI
+	FakeStackStore fakes.FakeStackStoreAPI
 
 	// alias to fake services features
-	FakeServiceStore *interfaces.FakeServiceStore
+	FakeServiceStore *fakes.FakeServiceStore
 
 	// alias to fake secrets features
-	FakeSecretStore interfaces.FakeFeatures
+	FakeSecretStore fakes.FakeFeatures
 
 	// alias to fake configs features
-	FakeConfigStore interfaces.FakeFeatures
+	FakeConfigStore fakes.FakeFeatures
 
 	// alias to fake networks features
-	FakeNetworkStore interfaces.FakeFeatures
+	FakeNetworkStore fakes.FakeFeatures
 }
 
 type fakeSwarmBackend struct {
-	*interfaces.FakeServiceStore
-	*interfaces.FakeSecretStore
-	*interfaces.FakeConfigStore
-	*interfaces.FakeNetworkStore
+	*fakes.FakeServiceStore
+	*fakes.FakeSecretStore
+	*fakes.FakeConfigStore
+	*fakes.FakeNetworkStore
 }
 
 func (*fakeSwarmBackend) Info() swarm.Info {
@@ -47,24 +48,24 @@ func (*fakeSwarmBackend) Info() swarm.Info {
 }
 
 func (*fakeSwarmBackend) GetNode(id string) (swarm.Node, error) {
-	return swarm.Node{}, interfaces.FakeUnimplemented
+	return swarm.Node{}, fakes.FakeUnimplemented
 }
 
 func (*fakeSwarmBackend) GetTasks(dockerTypes.TaskListOptions) ([]swarm.Task, error) {
-	return []swarm.Task{}, interfaces.FakeUnimplemented
+	return []swarm.Task{}, fakes.FakeUnimplemented
 }
 
 func (*fakeSwarmBackend) GetTask(string) (swarm.Task, error) {
-	return swarm.Task{}, interfaces.FakeUnimplemented
+	return swarm.Task{}, fakes.FakeUnimplemented
 }
 
 func newFakeReconcilerClient() *fakeReconcilerClient {
 
-	fakeStacks := interfaces.NewFakeStackStore()
-	fakeServices := interfaces.NewFakeServiceStore()
-	fakeSecrets := interfaces.NewFakeSecretStore()
-	fakeConfigs := interfaces.NewFakeConfigStore()
-	fakeNetworks := interfaces.NewFakeNetworkStore()
+	fakeStacks := fakes.NewFakeStackStore()
+	fakeServices := fakes.NewFakeServiceStore()
+	fakeSecrets := fakes.NewFakeSecretStore()
+	fakeConfigs := fakes.NewFakeConfigStore()
+	fakeNetworks := fakes.NewFakeNetworkStore()
 
 	fakeBackend := fakeSwarmBackend{
 		FakeServiceStore: fakeServices,
@@ -100,14 +101,14 @@ func (f *fakeReconcilerClient) GenerateStackDependencies(stackID string) (interf
 		return interfaces.SnapshotStack{}, err
 	}
 
-	stackSpec, _ := interfaces.CopyStackSpec(snapshot.CurrentSpec)
+	stackSpec, _ := fakes.CopyStackSpec(snapshot.CurrentSpec)
 	configs := make([]interfaces.SnapshotResource, len(stackSpec.Configs))
 	services := make([]interfaces.SnapshotResource, len(stackSpec.Services))
 	secrets := make([]interfaces.SnapshotResource, len(stackSpec.Secrets))
 	networks := make([]interfaces.SnapshotResource, len(stackSpec.Networks))
 
 	for index, secret := range stackSpec.Secrets {
-		secret, _ = interfaces.CopySecretSpec(secret)
+		secret, _ = fakes.CopySecretSpec(secret)
 		if secret.Annotations.Labels == nil {
 			secret.Annotations.Labels = map[string]string{}
 		}
@@ -128,7 +129,7 @@ func (f *fakeReconcilerClient) GenerateStackDependencies(stackID string) (interf
 	}
 
 	for index, config := range stackSpec.Configs {
-		config = *interfaces.CopyConfigSpec(config)
+		config = *fakes.CopyConfigSpec(config)
 		if config.Annotations.Labels == nil {
 			config.Annotations.Labels = map[string]string{}
 		}
@@ -149,7 +150,7 @@ func (f *fakeReconcilerClient) GenerateStackDependencies(stackID string) (interf
 	}
 
 	for name, network := range stackSpec.Networks {
-		network, _ = interfaces.CopyNetworkCreate(network)
+		network, _ = fakes.CopyNetworkCreate(network)
 		if network.Labels == nil {
 			network.Labels = map[string]string{}
 		}
@@ -174,7 +175,7 @@ func (f *fakeReconcilerClient) GenerateStackDependencies(stackID string) (interf
 	}
 
 	for index, service := range stackSpec.Services {
-		service, _ = interfaces.CopyServiceSpec(service)
+		service, _ = fakes.CopyServiceSpec(service)
 		if service.Annotations.Labels == nil {
 			service.Annotations.Labels = map[string]string{}
 		}

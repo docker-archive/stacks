@@ -1,4 +1,4 @@
-package interfaces
+package fakes
 
 import (
 	"fmt"
@@ -10,6 +10,7 @@ import (
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/errdefs"
 
+	"github.com/docker/stacks/pkg/interfaces"
 	"github.com/docker/stacks/pkg/types"
 	"github.com/stretchr/testify/require"
 )
@@ -263,7 +264,7 @@ func TestCRDFakeConfigStore(t *testing.T) {
 	require.Error(filterErr)
 
 	configs, err := store.GetConfigs(dockerTypes.ConfigListOptions{
-		Filters: filters.NewArgs(StackLabelArg("Testing123")),
+		Filters: filters.NewArgs(interfaces.StackLabelArg("Testing123")),
 	})
 	require.NoError(err)
 	require.Empty(configs)
@@ -307,7 +308,7 @@ func TestCRDFakeConfigStore(t *testing.T) {
 
 	// Assert that the StackLabels on even specs are found
 	configsFilter, errFilter := store.GetConfigs(dockerTypes.ConfigListOptions{
-		Filters: filters.NewArgs(StackLabelArg("TestCRDFakeConfigStore")),
+		Filters: filters.NewArgs(interfaces.StackLabelArg("TestCRDFakeConfigStore")),
 	})
 	require.NoError(errFilter)
 	require.Len(configsFilter, 2)

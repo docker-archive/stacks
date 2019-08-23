@@ -12,6 +12,7 @@ import (
 
 	"github.com/docker/stacks/pkg/controller/backend"
 	stacksRouter "github.com/docker/stacks/pkg/controller/router"
+	"github.com/docker/stacks/pkg/fakes"
 	"github.com/docker/stacks/pkg/interfaces"
 	"github.com/docker/stacks/pkg/reconciler"
 )
@@ -46,7 +47,7 @@ func Server(opts ServerOptions) error {
 
 	// Create the underlying storage for stacks and swarmstacks as an
 	// in-memory store.
-	stackStore := interfaces.NewFakeStackStore()
+	stackStore := fakes.NewFakeStackStore()
 
 	// Create a Stacks API Backend, which includes the API handling logic.
 	stacksBackend := backend.NewDefaultStacksBackend(stackStore, swarmResourceBackend)

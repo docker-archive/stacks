@@ -15,6 +15,7 @@ import (
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/swarm"
 
+	"github.com/docker/stacks/pkg/fakes"
 	"github.com/docker/stacks/pkg/interfaces"
 	"github.com/docker/stacks/pkg/types"
 	gogotypes "github.com/gogo/protobuf/types"
@@ -117,12 +118,12 @@ var _ = Describe("Reconciler", func() {
 		f = newFakeReconcilerClient()
 
 		f.FakeStackStore.SpecifyKeyPrefix(gogotypes.TimestampString(gogotypes.TimestampNow()))
-		f.FakeStackStore.SpecifyError("unavailable", interfaces.FakeUnavailable)
-		f.FakeStackStore.SpecifyError("invalidarg", interfaces.FakeInvalidArg)
+		f.FakeStackStore.SpecifyError("unavailable", fakes.FakeUnavailable)
+		f.FakeStackStore.SpecifyError("invalidarg", fakes.FakeInvalidArg)
 
 		f.FakeServiceStore.SpecifyKeyPrefix(gogotypes.TimestampString(gogotypes.TimestampNow()))
-		f.FakeServiceStore.SpecifyError("unavailable", interfaces.FakeUnavailable)
-		f.FakeServiceStore.SpecifyError("invalidarg", interfaces.FakeInvalidArg)
+		f.FakeServiceStore.SpecifyError("unavailable", fakes.FakeUnavailable)
+		f.FakeServiceStore.SpecifyError("invalidarg", fakes.FakeInvalidArg)
 
 		stackFixture = &types.Stack{
 			Spec: types.StackSpec{
@@ -254,7 +255,7 @@ var _ = Describe("Reconciler", func() {
 				// we get the pointer
 				service, _ := f.GetService(resp.ID, false)
 				f.FakeServiceStore.MarkInputForError("unavailable", &service.Spec)
-				f.FakeServiceStore.SpecifyError("unavailable", interfaces.FakeUnavailable)
+				f.FakeServiceStore.SpecifyError("unavailable", fakes.FakeUnavailable)
 			})
 		})
 
@@ -429,7 +430,7 @@ var _ = Describe("Reconciler", func() {
 
 				When("the service does not match the stack definition", func() {
 					BeforeEach(func() {
-						differentSpec, _ := interfaces.CopyServiceSpec(spec)
+						differentSpec, _ := fakes.CopyServiceSpec(spec)
 						differentSpec.Annotations.Labels = map[string]string{
 							types.StackLabel: localStackID,
 							"klaatu":         "barada nikto",

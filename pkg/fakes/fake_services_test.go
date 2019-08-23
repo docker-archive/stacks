@@ -1,4 +1,4 @@
-package interfaces
+package fakes
 
 import (
 	"fmt"
@@ -8,6 +8,8 @@ import (
 	dockerTypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/errdefs"
+
+	"github.com/docker/stacks/pkg/interfaces"
 
 	"github.com/stretchr/testify/require"
 )
@@ -55,12 +57,12 @@ func TestUpdateFakeServiceStore(t *testing.T) {
 	service2 := getTestServices("service2", "image2")
 
 	resp, err := store.CreateService(service1.Spec,
-		DefaultCreateServiceArg2,
-		DefaultCreateServiceArg3)
+		interfaces.DefaultCreateServiceArg2,
+		interfaces.DefaultCreateServiceArg3)
 	require.NoError(err)
 	id := resp.ID
 
-	service, err := store.GetService(id, DefaultGetServiceArg2)
+	service, err := store.GetService(id, interfaces.DefaultGetServiceArg2)
 	require.NoError(err)
 	require.Equal(service.ID, id)
 	require.True(reflect.DeepEqual(service.Spec, service1.Spec))
@@ -70,7 +72,7 @@ func TestUpdateFakeServiceStore(t *testing.T) {
 			dockerTypes.ServiceUpdateOptions{}, false)
 	require.NoError(updateErr)
 
-	service, err = store.GetService(id, DefaultGetServiceArg2)
+	service, err = store.GetService(id, interfaces.DefaultGetServiceArg2)
 	require.NoError(err)
 	require.Equal(service.ID, id)
 	require.True(reflect.DeepEqual(service.Spec, service2.Spec))
@@ -86,7 +88,7 @@ func TestCRDFakeServiceStore(t *testing.T) {
 	require.NoError(err)
 	require.Empty(services)
 
-	service, err := store.GetService("doesntexist", DefaultGetServiceArg2)
+	service, err := store.GetService("doesntexist", interfaces.DefaultGetServiceArg2)
 	require.Error(err)
 	require.True(errdefs.IsNotFound(err))
 	require.Empty(service)
@@ -95,8 +97,8 @@ func TestCRDFakeServiceStore(t *testing.T) {
 	fixtures := generateServiceFixtures(4)
 	for i := 0; i < 3; i++ {
 		resp, err := store.CreateService(fixtures[i].Spec,
-			DefaultCreateServiceArg2,
-			DefaultCreateServiceArg3)
+			interfaces.DefaultCreateServiceArg2,
+			interfaces.DefaultCreateServiceArg3)
 		require.NoError(err, fmt.Sprintf("failed to add fixture %d", i))
 		id := resp.ID
 		require.NotNil(id)
@@ -116,7 +118,7 @@ func TestCRDFakeServiceStore(t *testing.T) {
 
 	for _, id := range []string{"id_service_1", "id_service_2", "id_service_3"} {
 		require.Contains(found, id, fmt.Sprintf("ID %s not found", id))
-		service, err = store.GetService(id, DefaultGetServiceArg2)
+		service, err = store.GetService(id, interfaces.DefaultGetServiceArg2)
 		require.NoError(err)
 		require.Equal(service.ID, id)
 	}
@@ -132,21 +134,21 @@ func TestCRDFakeServiceStore(t *testing.T) {
 
 	for _, id := range []string{"id_service_1", "id_service_3"} {
 		require.Contains(found, id, fmt.Sprintf("ID %s not found", id))
-		service, err = store.GetService(id, DefaultGetServiceArg2)
+		service, err = store.GetService(id, interfaces.DefaultGetServiceArg2)
 		require.NoError(err)
 		require.Equal(service.ID, id)
 	}
 
 	// Add a new service
 	resp, err := store.CreateService(fixtures[3].Spec,
-		DefaultCreateServiceArg2,
-		DefaultCreateServiceArg3)
+		interfaces.DefaultCreateServiceArg2,
+		interfaces.DefaultCreateServiceArg3)
 	require.NoError(err)
 	id := resp.ID
 	require.NotNil(id)
 
 	// Ensure that the deleted service is not present
-	service, err = store.GetService(services[1].ID, DefaultGetServiceArg2)
+	service, err = store.GetService(services[1].ID, interfaces.DefaultGetServiceArg2)
 	require.Error(err)
 	require.True(errdefs.IsNotFound(err))
 

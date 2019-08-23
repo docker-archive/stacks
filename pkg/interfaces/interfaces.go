@@ -106,3 +106,10 @@ type SnapshotResource struct {
 func StackLabelArg(stackID string) filters.KeyValuePair {
 	return filters.Arg("label", fmt.Sprintf("%s=%s", types.StackLabel, stackID))
 }
+
+// temporary constant arguments in order to track their uses
+const (
+	DefaultGetServiceArg2    = false
+	DefaultCreateServiceArg2 = ""
+	DefaultCreateServiceArg3 = false
+)
