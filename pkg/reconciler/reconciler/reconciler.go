@@ -1,7 +1,6 @@
 package reconciler
 
 import (
-	"fmt"
 	"reflect"
 
 	dockerTypes "github.com/docker/docker/api/types"
@@ -11,26 +10,10 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/sirupsen/logrus"
 
+	"github.com/docker/stacks/pkg/interfaces"
 	"github.com/docker/stacks/pkg/reconciler/notifier"
 	"github.com/docker/stacks/pkg/types"
 )
-
-// Client is the subset of interfaces.BackendClient methods needed to
-// implement the Reconciler.
-type Client interface {
-	// stack methods
-	GetStack(string) (types.Stack, error)
-
-	// service methods
-	GetServices(dockerTypes.ServiceListOptions) ([]swarm.Service, error)
-	GetService(string, bool) (swarm.Service, error)
-	CreateService(swarm.ServiceSpec, string, bool) (*dockerTypes.ServiceCreateResponse, error)
-	UpdateService(string, uint64, swarm.ServiceSpec, dockerTypes.ServiceUpdateOptions, bool) (*dockerTypes.ServiceUpdateResponse, error)
-	RemoveService(string) error
-
-	// TODO(dperny): there's a lot more where this came from, but these are the
-	// parts we need to make this part go
-}
 
 // Reconciler is the interface implemented to do the actual work of computing
 // and executing the changes required to bring the cluster's specs in line with
@@ -58,7 +41,7 @@ type Reconciler interface {
 // reconciler can be written confined to one goroutine.
 type reconciler struct {
 	notify notifier.ObjectChangeNotifier
-	cli    Client
+	cli    interfaces.BackendClient
 
 	// stackResources maps object IDs to the ID of the stack that those objects
 	// belong to. it is used to determine if a deleted object belongs to a
@@ -67,14 +50,14 @@ type reconciler struct {
 }
 
 // New creates a new Reconciler object, which uses the provided
-// ObjectChangeNotifier and Client.
-func New(notify notifier.ObjectChangeNotifier, cli Client) Reconciler {
+// ObjectChangeNotifier and BackendClient.
+func New(notify notifier.ObjectChangeNotifier, cli interfaces.BackendClient) Reconciler {
 	return newReconciler(notify, cli)
 }
 
 // newReconciler creates and returns a reconciler object. This returns the
 // raw object, for use internally, instead of the interface as used externally.
-func newReconciler(notify notifier.ObjectChangeNotifier, cli Client) *reconciler {
+func newReconciler(notify notifier.ObjectChangeNotifier, cli interfaces.BackendClient) *reconciler {
 	r := &reconciler{
 		notify:         notify,
 		cli:            cli,
@@ -110,14 +93,16 @@ func (r *reconciler) reconcileStack(id string) error {
 
 	for _, spec := range stack.Spec.Services {
 		// try getting the service to see if it already exists
-		service, err := r.cli.GetService(spec.Annotations.Name, false)
+		service, err := r.cli.GetService(spec.Annotations.Name, interfaces.DefaultGetServiceArg2)
 		// if it doesn't exist create it now
 		if errdefs.IsNotFound(err) {
 			// TODO(dperny): second 2 arguments?
 			// TODO(dperny): we don't cache service data right now, but we
 			// might want to do so later
 			logrus.Debugf("Unable to find existing service, creating service with spec %+v", spec)
-			resp, err := r.cli.CreateService(spec, "", false)
+			resp, err := r.cli.CreateService(spec,
+				interfaces.DefaultCreateServiceArg2,
+				interfaces.DefaultCreateServiceArg3)
 			if err != nil {
 				return err
 			}
@@ -160,7 +145,7 @@ func (r *reconciler) reconcileStack(id string) error {
 
 func (r *reconciler) reconcileService(id string) error {
 	// first, of course, we have to actually get the service
-	service, err := r.cli.GetService(id, false)
+	service, err := r.cli.GetService(id, interfaces.DefaultGetServiceArg2)
 	switch {
 	case errdefs.IsNotFound(err):
 		// if the service isn't found, that means it has been deleted.
@@ -276,7 +261,5 @@ func (r *reconciler) handleDeletedService(id string) error {
 // stackLabelFilter constructs a filter.Args which filters for stacks based on
 // the stack label being equal to the stack ID.
 func stackLabelFilter(stackID string) filters.Args {
-	return filters.NewArgs(
-		filters.Arg("label", fmt.Sprintf("%s=%s", types.StackLabel, stackID)),
-	)
+	return filters.NewArgs(interfaces.StackLabelArg(stackID))
 }

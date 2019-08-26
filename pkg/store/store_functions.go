@@ -59,9 +59,9 @@ func InitExtension(ctx context.Context, rc ResourcesClient) error {
 }
 
 // AddStack adds a stack
-func AddStack(ctx context.Context, rc ResourcesClient, st types.Stack) (string, error) {
+func AddStack(ctx context.Context, rc ResourcesClient, stackSpec types.StackSpec) (string, error) {
 	// first, marshal the stacks to a proto message
-	any, err := MarshalStacks(&st)
+	any, err := MarshalStackSpec(&stackSpec)
 	if err != nil {
 		return "", err
 	}
@@ -69,8 +69,8 @@ func AddStack(ctx context.Context, rc ResourcesClient, st types.Stack) (string, 
 	// reuse the Annotations from the Stack. However, since they're
 	// actually different types, convert them
 	annotations := &swarmapi.Annotations{
-		Name:   st.Spec.Annotations.Name,
-		Labels: st.Spec.Annotations.Labels,
+		Name:   stackSpec.Annotations.Name,
+		Labels: stackSpec.Annotations.Labels,
 	}
 
 	// create a resource creation request
@@ -89,27 +89,25 @@ func AddStack(ctx context.Context, rc ResourcesClient, st types.Stack) (string, 
 }
 
 // UpdateStack updates a stack's specs.
-func UpdateStack(ctx context.Context, rc ResourcesClient, id string, st types.StackSpec, version uint64) error {
-	// get the swarmkit resource
+func UpdateStack(ctx context.Context, rc ResourcesClient, id string, stackSpec types.StackSpec, version uint64) error {
 	resp, err := rc.GetResource(ctx, &swarmapi.GetResourceRequest{
 		ResourceID: id,
 	})
 	if err != nil {
 		return err
 	}
-
 	resource := resp.Resource
-	// unmarshal the contents
-	stack, err := UnmarshalStacks(resource)
-	if err != nil {
-		return err
+
+	if stackSpec.Annotations.Name != resource.Annotations.Name {
+		return errors.New("Stack Name changed")
 	}
 
-	// update the specs
-	stack.Spec = st
+	if version != resource.Meta.Version.Index {
+		return errors.New("Stack Version stale")
+	}
 
-	// marshal it all back
-	any, err := MarshalStacks(stack)
+	// marshal the updated types.StackSpec
+	any, err := MarshalStackSpec(&stackSpec)
 	if err != nil {
 		return err
 	}
@@ -120,10 +118,8 @@ func UpdateStack(ctx context.Context, rc ResourcesClient, id string, st types.St
 			ResourceID:      id,
 			ResourceVersion: &swarmapi.Version{Index: version},
 			Annotations: &swarmapi.Annotations{
-				// Swarmkit will return an error if any changes to the
-				// name occur.
-				Name:   st.Annotations.Name,
-				Labels: st.Annotations.Labels,
+				Name:   stackSpec.Annotations.Name,
+				Labels: stackSpec.Annotations.Labels,
 			},
 			Payload: any,
 		},
@@ -150,17 +146,7 @@ func GetStack(ctx context.Context, rc ResourcesClient, id string) (types.Stack, 
 	}
 	resource := resp.Resource
 
-	// now, we have to get the stack out of the resource object
-	stack, err := UnmarshalStacks(resource)
-	if err != nil {
-		return types.Stack{}, err
-	}
-	if stack == nil {
-		return types.Stack{}, errors.New("got back an empty stack")
-	}
-
-	// and then return the stack
-	return *stack, nil
+	return ConstructStack(resource)
 }
 
 // ListStacks returns all stacks
@@ -180,11 +166,11 @@ func ListStacks(ctx context.Context, rc ResourcesClient) ([]types.Stack, error) 
 	// unmarshal and pack up all of the stack objects
 	stacks := make([]types.Stack, 0, len(resp.Resources))
 	for _, resource := range resp.Resources {
-		stack, err := UnmarshalStacks(resource)
+		stack, err := ConstructStack(resource)
 		if err != nil {
 			return nil, err
 		}
-		stacks = append(stacks, *stack)
+		stacks = append(stacks, stack)
 	}
 	return stacks, nil
 }

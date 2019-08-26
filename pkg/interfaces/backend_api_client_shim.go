@@ -25,6 +25,10 @@ type BackendAPIClientShim struct {
 	StacksBackend
 
 	SwarmResourceBackend
+	SwarmNetworkBackend
+	SwarmConfigBackend
+	SwarmSecretBackend
+	SwarmServiceBackend
 
 	// The following constructs are used to generate events for stack
 	// operations locally, and multiplex them into the daemon's event stream.

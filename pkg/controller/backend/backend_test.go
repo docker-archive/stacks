@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/docker/docker/api/types/swarm"
-	"github.com/docker/stacks/pkg/interfaces"
+	"github.com/docker/stacks/pkg/fakes"
 	"github.com/docker/stacks/pkg/mocks"
 	"github.com/docker/stacks/pkg/types"
 )
@@ -19,7 +19,7 @@ func TestStacksBackendUpdateOutOfSequence(t *testing.T) {
 	require := require.New(t)
 	ctrl := gomock.NewController(t)
 	backendClient := mocks.NewMockBackendClient(ctrl)
-	b := NewDefaultStacksBackend(interfaces.NewFakeStackStore(), backendClient)
+	b := NewDefaultStacksBackend(fakes.NewFakeStackStore(), backendClient)
 
 	// Create a stack with a valid StackCreate
 	response, err := b.CreateStack(types.StackSpec{
@@ -52,7 +52,7 @@ func TestStacksBackendInvalidCreate(t *testing.T) {
 	require := require.New(t)
 	ctrl := gomock.NewController(t)
 	backendClient := mocks.NewMockBackendClient(ctrl)
-	b := NewDefaultStacksBackend(interfaces.NewFakeStackStore(), backendClient)
+	b := NewDefaultStacksBackend(fakes.NewFakeStackStore(), backendClient)
 
 	_, err := b.CreateStack(types.StackSpec{})
 	require.Error(err)
@@ -68,7 +68,7 @@ func TestStacksBackendCRUD(t *testing.T) {
 	require := require.New(t)
 	ctrl := gomock.NewController(t)
 	backendClient := mocks.NewMockBackendClient(ctrl)
-	b := NewDefaultStacksBackend(interfaces.NewFakeStackStore(), backendClient)
+	b := NewDefaultStacksBackend(fakes.NewFakeStackStore(), backendClient)
 
 	// Create a stack with a valid StackCreate
 	service1Spec := swarm.ServiceSpec{
@@ -115,7 +115,7 @@ func TestStacksBackendCRUD(t *testing.T) {
 
 	response, err := b.CreateStack(stack1Spec)
 	require.NoError(err)
-	require.Equal("1", response.ID)
+	require.Equal("|0001", response.ID)
 
 	// Create another stack
 	stack2Spec := types.StackSpec{
@@ -129,7 +129,7 @@ func TestStacksBackendCRUD(t *testing.T) {
 
 	response, err = b.CreateStack(stack2Spec)
 	require.NoError(err)
-	require.Equal("2", response.ID)
+	require.Equal("|0002", response.ID)
 
 	// List both stacks
 	stacks, err := b.ListStacks()
@@ -152,10 +152,10 @@ func TestStacksBackendCRUD(t *testing.T) {
 	require.Empty(found)
 
 	// Get a stack by ID
-	stack, err := b.GetStack("1")
+	stack, err := b.GetStack("|0001")
 	require.NoError(err)
 	require.True(reflect.DeepEqual(stack.Spec, stack1Spec))
-	require.Equal(stack.ID, "1")
+	require.Equal(stack.ID, "|0001")
 	// TODO: require.Equal(stack.Orchestrator, types.OrchestratorSwarm)
 
 	// Update a stack
@@ -168,20 +168,20 @@ func TestStacksBackendCRUD(t *testing.T) {
 		},
 	}
 
-	stack2, err := b.GetStack("2")
+	stack2, err := b.GetStack("|0002")
 	require.NoError(err)
-	err = b.UpdateStack("2", stack3Spec, stack2.Version.Index)
+	err = b.UpdateStack("|0002", stack3Spec, stack2.Version.Index)
 	require.NoError(err)
 
 	// Get the updated stack by ID
-	stack, err = b.GetStack("2")
+	stack, err = b.GetStack("|0002")
 	require.NoError(err)
 	require.True(reflect.DeepEqual(stack.Spec, stack3Spec))
-	require.Equal(stack.ID, "2")
+	require.Equal(stack.ID, "|0002")
 
 	// Remove a stack
-	require.NoError(b.DeleteStack("2"))
-	_, err = b.GetStack("2")
+	require.NoError(b.DeleteStack("|0002"))
+	_, err = b.GetStack("|0002")
 	require.Error(err)
 	require.Contains(err.Error(), "stack not found")
 }

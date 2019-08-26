@@ -1,4 +1,4 @@
-package interfaces
+package fakes
 
 import (
 	"fmt"
@@ -52,7 +52,7 @@ func TestUpdateFakeStackStore(t *testing.T) {
 	stack1 := getTestStacks("service1", "image1")
 	stack2 := getTestStacks("service2", "image2")
 
-	id, err := store.AddStack(stack1)
+	id, err := store.AddStack(stack1.Spec)
 	require.NoError(err)
 
 	stack, err := store.GetStack(id)
@@ -86,7 +86,7 @@ func TestCRDFakeStackStore(t *testing.T) {
 	// Add three items
 	fixtures := generateFixtures(4)
 	for i := 0; i < 3; i++ {
-		id, err := store.AddStack(fixtures[i])
+		id, err := store.AddStack(fixtures[i].Spec)
 		require.NoError(err, fmt.Sprintf("failed to add fixture %d", i))
 		require.NotNil(id)
 	}
@@ -103,28 +103,23 @@ func TestCRDFakeStackStore(t *testing.T) {
 	}
 	require.Len(found, 3)
 
-	for _, id := range []string{"1", "2", "3"} {
+	for _, id := range []string{"|0001", "|0002", "|0003"} {
 		require.Contains(found, id, fmt.Sprintf("ID %s not found", id))
+		stack, err = store.GetStack(id)
+		require.NoError(err)
+		require.Equal(stack.ID, id)
 	}
 
-	stack, err = store.GetStack("1")
-	require.NoError(err)
-	require.Equal(stack.ID, "1")
-
-	stack, err = store.GetStack("3")
-	require.NoError(err)
-	require.Equal(stack.ID, "3")
-
-	// Remove a stack
-	require.NoError(store.DeleteStack("2"))
+	// Remove second stack
+	require.NoError(store.DeleteStack(stacks[1].ID))
 
 	// Add a new stack
-	id, err := store.AddStack(fixtures[3])
+	id, err := store.AddStack(fixtures[3].Spec)
 	require.NoError(err)
 	require.NotNil(id)
 
 	// Ensure that the deleted stack is not present
-	stack, err = store.GetStack("2")
+	stack, err = store.GetStack(stacks[1].ID)
 	require.Error(err)
 	require.True(errdefs.IsNotFound(err))
 
@@ -140,7 +135,7 @@ func TestCRDFakeStackStore(t *testing.T) {
 	}
 	require.Len(found, 3)
 
-	for _, name := range []string{"1", "3", "4"} {
+	for _, name := range []string{"|0001", "|0003", "|0004"} {
 		require.Contains(found, name, fmt.Sprintf("name %s not found", name))
 	}
 }

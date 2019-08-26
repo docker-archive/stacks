@@ -41,7 +41,7 @@ var _ = Describe("StackStore", func() {
 			mockController *gomock.Controller
 			mockClient     *mocks.MockResourcesClient
 
-			stack         *types.Stack
+			stackSpec     *types.StackSpec
 			stackResource *swarmapi.Resource
 
 			timeProto *gogotypes.Timestamp
@@ -55,18 +55,16 @@ var _ = Describe("StackStore", func() {
 			s = New(mockClient)
 
 			// these are essentially the same stacks from marshal_test.go
-			stack = &types.Stack{
-				Spec: types.StackSpec{
-					Annotations: swarm.Annotations{
-						Name: "someName",
-						Labels: map[string]string{
-							"key": "value",
-						},
+			stackSpec = &types.StackSpec{
+				Annotations: swarm.Annotations{
+					Name: "someName",
+					Labels: map[string]string{
+						"key": "value",
 					},
-					Services: []swarm.ServiceSpec{
-						{
-							Annotations: swarm.Annotations{Name: "bar"},
-						},
+				},
+				Services: []swarm.ServiceSpec{
+					{
+						Annotations: swarm.Annotations{Name: "bar"},
 					},
 				},
 			}
@@ -76,16 +74,16 @@ var _ = Describe("StackStore", func() {
 			timeObj, err = gogotypes.TimestampFromProto(timeProto)
 			Expect(err).ToNot(HaveOccurred())
 
-			stackAny, err := MarshalStacks(stack)
+			runtimeStackAny, err := MarshalStackSpec(stackSpec)
 			Expect(err).ToNot(HaveOccurred())
-			// we're allowed to use MarshalStacks in this as part of the test
+			// we're allowed to use MarshalStackSpec in this as part of the test
 			// code and not the code-under-test, because its correctness is
 			// checked as part of marshal_test.go
 			stackResource = &swarmapi.Resource{
 				ID: "someID",
 				Annotations: swarmapi.Annotations{
-					Name:   stack.Spec.Annotations.Name,
-					Labels: stack.Spec.Annotations.Labels,
+					Name:   stackSpec.Annotations.Name,
+					Labels: stackSpec.Annotations.Labels,
 				},
 				Meta: swarmapi.Meta{
 					CreatedAt: timeProto,
@@ -94,7 +92,7 @@ var _ = Describe("StackStore", func() {
 						Index: 1,
 					},
 				},
-				Payload: stackAny,
+				Payload: runtimeStackAny,
 			}
 		})
 
@@ -113,7 +111,7 @@ var _ = Describe("StackStore", func() {
 				nil,
 			)
 
-			id, err := s.AddStack(*stack)
+			id, err := s.AddStack(*stackSpec)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(id).To(Equal(stackResource.ID))
 		})
@@ -159,7 +157,7 @@ var _ = Describe("StackStore", func() {
 			}
 
 			// marshal the specs just like the code under test would
-			newAny, err := MarshalStacks(&updatedStack)
+			newAny, err := MarshalStackSpec(&updatedStack.Spec)
 			Expect(err).ToNot(HaveOccurred())
 			newResource := &swarmapi.Resource{
 				ID:          stackResource.ID,
@@ -219,7 +217,7 @@ var _ = Describe("StackStore", func() {
 					CreatedAt: timeObj,
 					UpdatedAt: timeObj,
 				},
-				Spec: stack.Spec,
+				Spec: *stackSpec,
 			}
 			mockClient.EXPECT().GetResource(
 				context.TODO(),
@@ -266,7 +264,7 @@ var _ = Describe("StackStore", func() {
 					}
 
 					// marshal the stacks
-					any, err := MarshalStacks(&st)
+					any, err := MarshalStackSpec(&st.Spec)
 					Expect(err).ToNot(HaveOccurred())
 
 					res := &swarmapi.Resource{
@@ -289,9 +287,9 @@ var _ = Describe("StackStore", func() {
 
 					// now, unmarshal the stacks so that we can put them in the
 					// list of stacks with all the fields filled in
-					unst, err := UnmarshalStacks(res)
+					unst, err := ConstructStack(res)
 					Expect(err).ToNot(HaveOccurred())
-					allStacks = append(allStacks, *unst)
+					allStacks = append(allStacks, unst)
 				}
 
 				mockClient.EXPECT().ListResources(
