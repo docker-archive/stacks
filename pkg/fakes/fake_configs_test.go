@@ -16,14 +16,16 @@ import (
 )
 
 // generateConfigFixtures creates some fixtures
-// as well as marking the even ones as belonging
+// as well as marking the EVEN ones as belonging
 // to types.StackLabel
 func generateConfigFixtures(n int, label string) []swarm.Config {
 	fixtures := make([]swarm.Config, n)
 	var i int
 	for i < n {
+		specName := fmt.Sprintf("%dconfig", i)
+		spec := getTestConfigSpec(specName)
 		fixtures[i] = swarm.Config{
-			Spec: getTestConfigSpecs(fmt.Sprintf("%dconfig", i), fmt.Sprintf("%dimage", i)),
+			Spec: spec,
 		}
 		if i%2 == 0 {
 			fixtures[i].Spec.Annotations.Labels = make(map[string]string)
@@ -35,7 +37,7 @@ func generateConfigFixtures(n int, label string) []swarm.Config {
 	return fixtures
 }
 
-func getTestConfigSpecs(name, image string) swarm.ConfigSpec {
+func getTestConfigSpec(name string) swarm.ConfigSpec {
 
 	spec := swarm.ConfigSpec{
 		Annotations: swarm.Annotations{
@@ -46,8 +48,8 @@ func getTestConfigSpecs(name, image string) swarm.ConfigSpec {
 	return spec
 }
 
-func getTestConfigs(name, image string) swarm.Config {
-	configSpec := getTestConfigSpecs(name, image)
+func getTestConfig(name string) swarm.Config {
+	configSpec := getTestConfigSpec(name)
 	return swarm.Config{
 		Spec: configSpec,
 	}
@@ -57,10 +59,10 @@ func TestUpdateFakeConfigStore(t *testing.T) {
 	require := require.New(t)
 	store := NewFakeConfigStore()
 	store.SpecifyKeyPrefix("TestUpdateFakeConfigStore")
-	store.SpecifyError("TestUpdateFakeConfigStore", FakeUnimplemented)
+	store.SpecifyErrorTrigger("TestUpdateFakeConfigStore", FakeUnimplemented)
 
-	config1 := getTestConfigs("config1", "image1")
-	config2 := getTestConfigs("config2", "image2")
+	config1 := getTestConfig("config1")
+	config2 := getTestConfig("config2")
 
 	id1, err := store.CreateConfig(config1.Spec)
 	require.NoError(err)
@@ -141,7 +143,7 @@ func TestSpecifiedErrorsFakeConfigStore(t *testing.T) {
 	require := require.New(t)
 	store := NewFakeConfigStore()
 	store.SpecifyKeyPrefix("SpecifiedError")
-	store.SpecifyError("SpecifiedError", FakeUnimplemented)
+	store.SpecifyErrorTrigger("SpecifiedError", FakeUnimplemented)
 
 	fixtures := generateConfigFixtures(10, "TestSpecifiedErrorsFakeConfigStore")
 
@@ -151,14 +153,14 @@ func TestSpecifiedErrorsFakeConfigStore(t *testing.T) {
 	// 0. Leaving untouched
 
 	// 1. forced creation failure
-	store.MarkInputForError("SpecifiedError", &fixtures[1].Spec, "CreateConfig")
+	store.MarkConfigSpecForError("SpecifiedError", &fixtures[1].Spec, "CreateConfig")
 
 	_, err = store.CreateConfig(fixtures[1].Spec)
 	require.True(errdefs.IsUnavailable(err))
 	require.Error(err)
 
 	// 2. forced get failure after good create
-	store.MarkInputForError("SpecifiedError", &fixtures[2].Spec, "GetConfig")
+	store.MarkConfigSpecForError("SpecifiedError", &fixtures[2].Spec, "GetConfig")
 
 	id, err = store.CreateConfig(fixtures[2].Spec)
 	require.NoError(err)
@@ -166,7 +168,7 @@ func TestSpecifiedErrorsFakeConfigStore(t *testing.T) {
 	require.Error(err)
 
 	// 3. forced update failure using untainted #0
-	store.MarkInputForError("SpecifiedError", &fixtures[3].Spec, "UpdateConfig")
+	store.MarkConfigSpecForError("SpecifiedError", &fixtures[3].Spec, "UpdateConfig")
 
 	id, err = store.CreateConfig(fixtures[3].Spec)
 	require.NoError(err)
@@ -191,7 +193,7 @@ func TestSpecifiedErrorsFakeConfigStore(t *testing.T) {
 	require.True(err == FakeUnimplemented)
 
 	// 5. forced remove failure
-	store.MarkInputForError("SpecifiedError", &fixtures[5].Spec, "RemoveConfig")
+	store.MarkConfigSpecForError("SpecifiedError", &fixtures[5].Spec, "RemoveConfig")
 
 	id, err = store.CreateConfig(fixtures[5].Spec)
 	require.NoError(err)
@@ -213,7 +215,7 @@ func TestSpecifiedErrorsFakeConfigStore(t *testing.T) {
 	require.True(err == FakeUnimplemented)
 
 	// 7. forced query failure
-	store.MarkInputForError("SpecifiedError", &fixtures[7].Spec, "GetConfigs")
+	store.MarkConfigSpecForError("SpecifiedError", &fixtures[7].Spec, "GetConfigs")
 
 	_, err = store.CreateConfig(fixtures[7].Spec)
 	require.NoError(err)
@@ -227,7 +229,7 @@ func TestSpecifiedErrorsFakeConfigStore(t *testing.T) {
 	require.NoError(err)
 
 	rawConfig := store.InternalGetConfig(id)
-	store.MarkInputForError("SpecifiedError", &rawConfig.Spec)
+	store.MarkConfigSpecForError("SpecifiedError", &rawConfig.Spec)
 
 	err = store.RemoveConfig(id)
 	require.Error(err)
@@ -294,7 +296,7 @@ func TestCRDFakeConfigStore(t *testing.T) {
 	}
 	require.Len(found, 3)
 
-	for _, id := range []string{"id_config_1", "id_config_2", "id_config_3"} {
+	for _, id := range []string{"CFG_1", "CFG_2", "CFG_3"} {
 		require.Contains(found, id, fmt.Sprintf("ID %s not found", id))
 		config, err = store.GetConfig(id)
 		require.NoError(err)
@@ -326,18 +328,15 @@ func TestCRDFakeConfigStore(t *testing.T) {
 	configsPointers = store.InternalQueryConfigs(idFunction)
 	require.NotEmpty(configsPointers)
 
-	// Assert we can list the three items and fetch them individually
+	// Assert we can list the two items and fetch them individually
 	configs2, err2 := store.GetConfigs(dockerTypes.ConfigListOptions{})
 	require.NoError(err2)
 	require.NotNil(configs2)
 	require.Len(configs2, 2)
 
-	for _, id := range []string{"id_config_1", "id_config_3"} {
+	for _, id := range []string{"CFG_1", "CFG_3"} {
 		require.Contains(found, id, fmt.Sprintf("ID %s not found", id))
 		config, err = store.GetConfig(id)
-		if err != nil {
-			fmt.Printf("\nYYYY %v\n", configs2)
-		}
 		require.NoError(err)
 		require.Equal(config.ID, id)
 	}
@@ -364,7 +363,7 @@ func TestCRDFakeConfigStore(t *testing.T) {
 	}
 	require.Len(found, 3)
 
-	for _, name := range []string{"id_config_1", "id_config_3", "id_config_4"} {
+	for _, name := range []string{"CFG_1", "CFG_3", "CFG_4"} {
 		require.Contains(found, name, fmt.Sprintf("name %s not found", name))
 	}
 }
