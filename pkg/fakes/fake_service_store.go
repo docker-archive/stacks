@@ -6,7 +6,6 @@ import (
 	"sync"
 
 	"github.com/containerd/typeurl"
-	gogotypes "github.com/gogo/protobuf/types"
 
 	dockerTypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/swarm"
@@ -15,7 +14,28 @@ import (
 	"github.com/docker/stacks/pkg/types"
 )
 
-// FakeServiceStore contains the subset of Backend APIs for swarm.Service
+/*
+ *   fake_service_store.go implementation is a customized-but-duplicate of
+ *   fake_secret_store.go, fake_config_store.go, fake_network_store.go and
+ *   fake_stack_store.go.
+ *
+ *   fake_service_store.go represents the interfaces.SwarmServiceBackend portions
+ *   of the interfaces.BackendClient.
+ *
+ *   reconciler.fakeReconcilerClient exposes extra API to direct control
+ *   of the internals of the implementation for testing.
+ *
+ *   SortedIDs() []string
+ *   InternalDeleteService(id string) *swarm.Service
+ *   InternalQueryServices(transform func(*swarm.Service) interface{}) []interface
+ *   InternalGetService(id string) *swarm.Service
+ *   InternalAddService(id string, service *swarm.Service)
+ *   MarkServiceSpecForError(errorKey string, *swarm.ServiceSpec, ops ...string)
+ *   SpecifyKeyPrefix(keyPrefix string)
+ *   SpecifyErrorTrigger(errorKey string, err error)
+ */
+
+// FakeServiceStore contains the subset of Backend APIs SwarmServiceBackend
 type FakeServiceStore struct {
 	mu          sync.Mutex
 	curID       int
@@ -28,21 +48,21 @@ type FakeServiceStore struct {
 
 func init() {
 	typeurl.Register(&swarm.ServiceSpec{}, "github.com/docker/swarm/ServiceSpec")
+	typeurl.Register(&swarm.Service{}, "github.com/docker/swarm/Service")
 }
 
 // CopyServiceSpec duplicates the ServiceSpec
-func CopyServiceSpec(spec swarm.ServiceSpec) (swarm.ServiceSpec, error) {
-	var payload *gogotypes.Any
-	var err error
-	payload, err = typeurl.MarshalAny(&spec)
-	if err != nil {
-		return swarm.ServiceSpec{}, err
-	}
-	iface, err := typeurl.UnmarshalAny(payload)
-	if err != nil {
-		return swarm.ServiceSpec{}, err
-	}
-	return *iface.(*swarm.ServiceSpec), nil
+func CopyServiceSpec(spec swarm.ServiceSpec) *swarm.ServiceSpec {
+	payload, _ := typeurl.MarshalAny(&spec)
+	iface, _ := typeurl.UnmarshalAny(payload)
+	return iface.(*swarm.ServiceSpec)
+}
+
+// CopyService duplicates the ServiceSpec
+func CopyService(spec swarm.Service) *swarm.Service {
+	payload, _ := typeurl.MarshalAny(&spec)
+	iface, _ := typeurl.UnmarshalAny(payload)
+	return iface.(*swarm.Service)
 }
 
 // NewFakeServiceStore creates a new FakeServiceStore
@@ -66,13 +86,16 @@ func (f *FakeServiceStore) resolveID(key string) string {
 	return id
 }
 
-func (f *FakeServiceStore) newID(objType string) string {
+func (f *FakeServiceStore) newID() string {
 	index := f.curID
 	f.curID++
-	return fmt.Sprintf("id_%s_%v", objType, index)
+	if len(f.keyPrefix) == 0 {
+		return fmt.Sprintf("SVC_%v", index)
+	}
+	return fmt.Sprintf("%s_SVC_%v", f.keyPrefix, index)
 }
 
-// GetServices implements the GetServices method of the BackendClient,
+// GetServices implements the GetServices method of the SwarmServiceBackend,
 // returning a list of services. It only supports 1 kind of filter, which is
 // a filter for stack ID.
 func (f *FakeServiceStore) GetServices(opts dockerTypes.ServiceListOptions) ([]swarm.Service, error) {
@@ -97,17 +120,18 @@ func (f *FakeServiceStore) GetServices(opts dockerTypes.ServiceListOptions) ([]s
 	result := []swarm.Service{}
 
 	for _, key := range f.SortedIDs() {
-		// if we're filtering on stack ID, and this service doesn't match, then
-		// we should skip this service
 		service := f.services[key]
+
+		// if we're filtering on stack ID, and this service doesn't
+		// match, then we should skip this service
 		if hasFilter && service.Spec.Annotations.Labels[types.StackLabel] != stackID {
 			continue
 		}
 		// otherwise, we should append this service to the set
-		if err := f.causeAnError(nil, "GetServices", service.Spec); err != nil {
+		if err := f.maybeTriggerAnError("GetServices", service.Spec); err != nil {
 			return nil, err
 		}
-		result = append(result, *service)
+		result = append(result, *CopyService(*service))
 	}
 
 	return result, nil
@@ -120,15 +144,15 @@ func (f *FakeServiceStore) GetService(idOrName string, _ bool) (swarm.Service, e
 
 	id := f.resolveID(idOrName)
 
-	service, ok := f.services[id]
-	if !ok {
-		return swarm.Service{}, errdefs.NotFound(fmt.Errorf("config %s not foun", id))
+	service := f.InternalGetService(id)
+	if service == nil {
+		return swarm.Service{}, errdefs.NotFound(fmt.Errorf("service %s not foun", id))
 	}
 
-	if err := f.causeAnError(nil, "GetService", service.Spec); err != nil {
-		return swarm.Service{}, FakeUnavailable
+	if err := f.maybeTriggerAnError("GetService", service.Spec); err != nil {
+		return swarm.Service{}, err
 	}
-	return *service, nil
+	return *CopyService(*service), nil
 }
 
 // CreateService creates a swarm service.
@@ -136,31 +160,28 @@ func (f *FakeServiceStore) CreateService(spec swarm.ServiceSpec, _ string, _ boo
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
-	if err := f.causeAnError(nil, "CreateService", spec); err != nil {
-		return nil, FakeInvalidArg
+	if err := f.maybeTriggerAnError("CreateService", spec); err != nil {
+		return nil, err
 	}
 
 	if _, ok := f.servicesByName[spec.Annotations.Name]; ok {
 		return nil, FakeInvalidArg
 	}
-	copied, err := CopyServiceSpec(spec)
-	if err != nil {
-		return nil, err
-	}
+
+	copied := CopyServiceSpec(spec)
 
 	// otherwise, create a service object
 	service := &swarm.Service{
-		ID: f.newID("service"),
+		ID: f.newID(),
 		Meta: swarm.Meta{
 			Version: swarm.Version{
 				Index: uint64(1),
 			},
 		},
-		Spec: copied,
+		Spec: *copied,
 	}
 
-	f.servicesByName[spec.Annotations.Name] = service.ID
-	f.services[service.ID] = service
+	f.InternalAddService(service.ID, service)
 
 	return &dockerTypes.ServiceCreateResponse{
 		ID: service.ID,
@@ -181,17 +202,25 @@ func (f *FakeServiceStore) UpdateService(
 	id := f.resolveID(idOrName)
 	service, ok := f.services[id]
 	if !ok {
-		return nil, FakeNotFound
+		return nil, errdefs.NotFound(fmt.Errorf("service %s not found", id))
 	}
 
 	if version != service.Meta.Version.Index {
 		return nil, FakeInvalidArg
 	}
 
-	copied, err := CopyServiceSpec(spec)
-	service.Spec = copied
+	if err := f.maybeTriggerAnError("UpdateService", service.Spec); err != nil {
+		return &dockerTypes.ServiceUpdateResponse{}, err
+	}
+
+	if err := f.maybeTriggerAnError("UpdateService", spec); err != nil {
+		return &dockerTypes.ServiceUpdateResponse{}, err
+	}
+
+	copied := CopyServiceSpec(spec)
+	service.Spec = *copied
 	service.Meta.Version.Index = service.Meta.Version.Index + 1
-	return &dockerTypes.ServiceUpdateResponse{}, err
+	return &dockerTypes.ServiceUpdateResponse{}, nil
 }
 
 // RemoveService deletes the service
@@ -201,12 +230,12 @@ func (f *FakeServiceStore) RemoveService(idOrName string) error {
 
 	id := f.resolveID(idOrName)
 
-	service, ok := f.services[id]
-	if !ok {
-		return FakeNotFound
+	service := f.InternalGetService(id)
+	if service == nil {
+		return errdefs.NotFound(fmt.Errorf("service %s not found", id))
 	}
 
-	if err := f.causeAnError(nil, "RemoveService", service.Spec); err != nil {
+	if err := f.maybeTriggerAnError("RemoveService", service.Spec); err != nil {
 		return err
 	}
 
@@ -215,11 +244,8 @@ func (f *FakeServiceStore) RemoveService(idOrName string) error {
 	return nil
 }
 
-func (f *FakeServiceStore) causeAnError(err error, operation string, spec swarm.ServiceSpec) error {
-	if err != nil {
-		return err
-	}
-
+// utility function for interfaces.SwarmServiceBackend calls to trigger an error
+func (f *FakeServiceStore) maybeTriggerAnError(operation string, spec swarm.ServiceSpec) error {
 	key := f.constructErrorMark(operation)
 	errorName, ok := spec.Annotations.Labels[key]
 	if !ok {
@@ -233,8 +259,8 @@ func (f *FakeServiceStore) causeAnError(err error, operation string, spec swarm.
 	return f.labelErrors[errorName]
 }
 
-// SpecifyError associates an error to a key
-func (f *FakeServiceStore) SpecifyError(errorKey string, err error) {
+// SpecifyErrorTrigger associates an error to an errorKey so that when calls interfaces.SwarmServiceBackend find a marked swarm.ServiceSpec an error is returned
+func (f *FakeServiceStore) SpecifyErrorTrigger(errorKey string, err error) {
 	f.labelErrors[errorKey] = err
 }
 
@@ -250,10 +276,11 @@ func (f *FakeServiceStore) constructErrorMark(operation string) string {
 	return f.keyPrefix + "." + operation + ".serviceError"
 }
 
-// MarkInputForError mark ServiceSpec with potential errors
-func (f *FakeServiceStore) MarkInputForError(errorKey string, input interface{}, ops ...string) {
+// MarkServiceSpecForError marks a swarm.ServiceSpec to trigger an error when calls from interfaces.SwarmServiceBackend are configured for the errorKey.
+// - All interfaces.SwarmServiceBackend calls may be triggered if len(ops)==0
+// - Otherwise, ops may be any of the following: GetServices, GetService, CreateService, UpdateService, RemoveService
+func (f *FakeServiceStore) MarkServiceSpecForError(errorKey string, spec *swarm.ServiceSpec, ops ...string) {
 
-	spec := input.(*swarm.ServiceSpec)
 	if spec.Annotations.Labels == nil {
 		spec.Annotations.Labels = make(map[string]string)
 	}

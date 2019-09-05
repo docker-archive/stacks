@@ -134,8 +134,10 @@ func StackLabelArg(stackID string) filters.KeyValuePair {
 }
 
 // temporary constant arguments in order to track their uses
-const (
+var (
 	DefaultGetServiceArg2    = false
 	DefaultCreateServiceArg2 = ""
 	DefaultCreateServiceArg3 = false
+	DefaultUpdateServiceArg4 = dockerTypes.ServiceUpdateOptions{}
+	DefaultUpdateServiceArg5 = false
 )
