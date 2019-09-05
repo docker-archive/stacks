@@ -97,7 +97,7 @@ func (f *fakeReconcilerClient) GenerateStackDependencies(stackID string) (interf
 	networks := make([]interfaces.SnapshotResource, len(stackSpec.Networks))
 
 	for index, secret := range stackSpec.Secrets {
-		secret, _ = fakes.CopySecretSpec(secret)
+		secret = *fakes.CopySecretSpec(secret)
 		if secret.Annotations.Labels == nil {
 			secret.Annotations.Labels = map[string]string{}
 		}

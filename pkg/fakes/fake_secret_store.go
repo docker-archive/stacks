@@ -6,15 +6,36 @@ import (
 	"sync"
 
 	"github.com/containerd/typeurl"
-	gogotypes "github.com/gogo/protobuf/types"
 
 	dockerTypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/swarm"
+	"github.com/docker/docker/errdefs"
 
 	"github.com/docker/stacks/pkg/types"
 )
 
-// FakeSecretStore contains the subset of Backend APIs for swarm.SecretSpec
+/*
+ *   fake_secret_store.go implementation is a customized-but-duplicate of
+ *   fake_service_store.go, fake_config_store.go, fake_network_store.go and
+ *   fake_stack_store.go.
+ *
+ *   fake_secret_store.go represents the interfaces.SwarmSecretBackend portions
+ *   of the interfaces.BackendClient.
+ *
+ *   reconciler.fakeReconcilerClient exposes extra API to direct control
+ *   of the internals of the implementation for testing.
+ *
+ *   SortedIDs() []string
+ *   InternalDeleteSecret(id string) *swarm.Secret
+ *   InternalQuerySecrets(transform func(*swarm.Secret) interface{}) []interface
+ *   InternalGetSecret(id string) *swarm.Secret
+ *   InternalAddSecret(id string, secret *swarm.Secret)
+ *   MarkSecretSpecForError(errorKey string, *swarm.SecretSpec, ops ...string)
+ *   SpecifyKeyPrefix(keyPrefix string)
+ *   SpecifyErrorTrigger(errorKey string, err error)
+ */
+
+// FakeSecretStore contains the subset of Backend APIs SwarmSecretBackend
 type FakeSecretStore struct {
 	mu          sync.Mutex
 	curID       int
@@ -25,23 +46,26 @@ type FakeSecretStore struct {
 	secretsByName map[string]string
 }
 
+// These type registrations are for TESTING in order to create deep copies
 func init() {
 	typeurl.Register(&swarm.SecretSpec{}, "github.com/docker/swarm/SecretSpec")
+	typeurl.Register(&swarm.Secret{}, "github.com/docker/swarm/Secret")
 }
 
 // CopySecretSpec duplicates the swarm.SecretSpec
-func CopySecretSpec(spec swarm.SecretSpec) (swarm.SecretSpec, error) {
-	var payload *gogotypes.Any
-	var err error
-	payload, err = typeurl.MarshalAny(&spec)
-	if err != nil {
-		return swarm.SecretSpec{}, err
-	}
-	iface, err := typeurl.UnmarshalAny(payload)
-	if err != nil {
-		return swarm.SecretSpec{}, err
-	}
-	return *iface.(*swarm.SecretSpec), nil
+func CopySecretSpec(spec swarm.SecretSpec) *swarm.SecretSpec {
+	// any errors ought to be impossible xor panicked in devel
+	payload, _ := typeurl.MarshalAny(&spec)
+	iface, _ := typeurl.UnmarshalAny(payload)
+	return iface.(*swarm.SecretSpec)
+}
+
+// CopySecret duplicates the swarm.Secret
+func CopySecret(spec swarm.Secret) *swarm.Secret {
+	// any errors ought to be impossible xor panicked in devel
+	payload, _ := typeurl.MarshalAny(&spec)
+	iface, _ := typeurl.UnmarshalAny(payload)
+	return iface.(*swarm.Secret)
 }
 
 // NewFakeSecretStore creates a new FakeSecretStore
@@ -65,13 +89,16 @@ func (f *FakeSecretStore) resolveID(key string) string {
 	return id
 }
 
-func (f *FakeSecretStore) newID(objType string) string {
+func (f *FakeSecretStore) newID() string {
 	index := f.curID
 	f.curID++
-	return fmt.Sprintf("id_%s_%v", objType, index)
+	if len(f.keyPrefix) == 0 {
+		return fmt.Sprintf("SEC_%v", index)
+	}
+	return fmt.Sprintf("%s_SEC_%v", f.keyPrefix, index)
 }
 
-// GetSecrets implements the GetSecrets method of the BackendClient,
+// GetSecrets implements the GetSecrets method of the SwarmSecretBackend,
 // returning a list of secrets. It only supports 1 kind of filter, which is
 // a filter for stack ID.
 func (f *FakeSecretStore) GetSecrets(opts dockerTypes.SecretListOptions) ([]swarm.Secret, error) {
@@ -97,16 +124,17 @@ func (f *FakeSecretStore) GetSecrets(opts dockerTypes.SecretListOptions) ([]swar
 
 	for _, key := range f.SortedIDs() {
 		secret := f.secrets[key]
-		// if we're filtering on stack ID, and this secret doesn't match, then
-		// we should skip this secret
+
+		// if we're filtering on stack ID, and this secret doesn't
+		// match, then we should skip this secret
 		if hasFilter && secret.Spec.Annotations.Labels[types.StackLabel] != stackID {
 			continue
 		}
 		// otherwise, we should append this secret to the set
-		if err := f.causeAnError(nil, "GetSecrets", secret.Spec); err != nil {
+		if err := f.maybeTriggerAnError("GetSecrets", secret.Spec); err != nil {
 			return nil, err
 		}
-		secrets = append(secrets, *secret)
+		secrets = append(secrets, *CopySecret(*secret))
 	}
 
 	return secrets, nil
@@ -121,13 +149,13 @@ func (f *FakeSecretStore) GetSecret(idOrName string) (swarm.Secret, error) {
 
 	secret, ok := f.secrets[id]
 	if !ok {
-		return swarm.Secret{}, FakeNotFound
+		return swarm.Secret{}, errdefs.NotFound(fmt.Errorf("secret %s not found", id))
 	}
 
-	if err := f.causeAnError(nil, "GetSecret", secret.Spec); err != nil {
-		return swarm.Secret{}, FakeUnavailable
+	if err := f.maybeTriggerAnError("GetSecret", secret.Spec); err != nil {
+		return swarm.Secret{}, err
 	}
-	return *secret, nil
+	return *CopySecret(*secret), nil
 }
 
 // CreateSecret creates a swarm secret.
@@ -135,31 +163,28 @@ func (f *FakeSecretStore) CreateSecret(spec swarm.SecretSpec) (string, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
-	if err := f.causeAnError(nil, "CreateSecret", spec); err != nil {
-		return "", FakeInvalidArg
+	if err := f.maybeTriggerAnError("CreateSecret", spec); err != nil {
+		return "", err
 	}
 
 	if _, ok := f.secretsByName[spec.Annotations.Name]; ok {
 		return "", FakeInvalidArg
 	}
-	copied, err := CopySecretSpec(spec)
-	if err != nil {
-		return "", err
-	}
+
+	copied := CopySecretSpec(spec)
 
 	// otherwise, create a secret object
 	secret := &swarm.Secret{
-		ID: f.newID("secret"),
+		ID: f.newID(),
 		Meta: swarm.Meta{
 			Version: swarm.Version{
 				Index: uint64(1),
 			},
 		},
-		Spec: copied,
+		Spec: *copied,
 	}
 
-	f.secretsByName[spec.Annotations.Name] = secret.ID
-	f.secrets[secret.ID] = secret
+	f.InternalAddSecret(secret.ID, secret)
 
 	return secret.ID, nil
 }
@@ -176,46 +201,51 @@ func (f *FakeSecretStore) UpdateSecret(
 	id := f.resolveID(idOrName)
 	secret, ok := f.secrets[id]
 	if !ok {
-		return FakeNotFound
+		return errdefs.NotFound(fmt.Errorf("secret %s not found", id))
 	}
 
 	if version != secret.Meta.Version.Index {
 		return FakeInvalidArg
 	}
 
-	copied, err := CopySecretSpec(spec)
-	secret.Spec = copied
+	if err := f.maybeTriggerAnError("UpdateSecret", secret.Spec); err != nil {
+		return err
+	}
+
+	if err := f.maybeTriggerAnError("UpdateSecret", spec); err != nil {
+
+		return err
+	}
+
+	copied := CopySecretSpec(spec)
+	secret.Spec = *copied
 	secret.Meta.Version.Index = secret.Meta.Version.Index + 1
-	return err
+	return nil
 }
 
-// RemoveSecret deletes the config
+// RemoveSecret deletes the secret
 func (f *FakeSecretStore) RemoveSecret(idOrName string) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
 	id := f.resolveID(idOrName)
 
-	secret, ok := f.secrets[id]
-	if !ok {
-		return FakeNotFound
+	secret := f.InternalGetSecret(id)
+	if secret == nil {
+		return errdefs.NotFound(fmt.Errorf("secret %s not found", id))
 	}
 
-	if err := f.causeAnError(nil, "RemoveSecret", secret.Spec); err != nil {
+	if err := f.maybeTriggerAnError("RemoveSecret", secret.Spec); err != nil {
 		return err
 	}
 
-	delete(f.secrets, secret.ID)
-	delete(f.secretsByName, secret.Spec.Annotations.Name)
+	f.InternalDeleteSecret(id)
 
 	return nil
 }
 
-func (f *FakeSecretStore) causeAnError(err error, operation string, spec swarm.SecretSpec) error {
-	if err != nil {
-		return err
-	}
-
+// utility function for interfaces.SwarmSecretBackend calls to trigger an error
+func (f *FakeSecretStore) maybeTriggerAnError(operation string, spec swarm.SecretSpec) error {
 	key := f.constructErrorMark(operation)
 	errorName, ok := spec.Annotations.Labels[key]
 	if !ok {
@@ -229,8 +259,8 @@ func (f *FakeSecretStore) causeAnError(err error, operation string, spec swarm.S
 	return f.labelErrors[errorName]
 }
 
-// SpecifyError associates an error to a key
-func (f *FakeSecretStore) SpecifyError(errorKey string, err error) {
+// SpecifyErrorTrigger associates an error to an errorKey so that when calls interfaces.SwarmSecretBackend find a marked swarm.SecretSpec an error is returned
+func (f *FakeSecretStore) SpecifyErrorTrigger(errorKey string, err error) {
 	f.labelErrors[errorKey] = err
 }
 
@@ -246,10 +276,11 @@ func (f *FakeSecretStore) constructErrorMark(operation string) string {
 	return f.keyPrefix + "." + operation + ".secretError"
 }
 
-// MarkInputForError mark swarm.SecretSpec with potential errors
-func (f *FakeSecretStore) MarkInputForError(errorKey string, input interface{}, ops ...string) {
+// MarkSecretSpecForError marks a swarm.SecretSpec to trigger an error when calls from interfaces.SwarmSecretBackend are configured for the errorKey.
+// - All interfaces.SwarmSecretBackend calls may be triggered if len(ops)==0
+// - Otherwise, ops may be any of the following: GetSecrets, GetSecret, CreateSecret, UpdateSecret, RemoveSecret
+func (f *FakeSecretStore) MarkSecretSpecForError(errorKey string, spec *swarm.SecretSpec, ops ...string) {
 
-	spec := input.(*swarm.SecretSpec)
 	if spec.Annotations.Labels == nil {
 		spec.Annotations.Labels = make(map[string]string)
 	}
@@ -264,23 +295,22 @@ func (f *FakeSecretStore) MarkInputForError(errorKey string, input interface{}, 
 	}
 }
 
-// InternalAddSecret adds swarm.SecretSpec to storage without preconditions
+// InternalAddSecret adds swarm.Secret to storage without preconditions
 func (f *FakeSecretStore) InternalAddSecret(id string, secret *swarm.Secret) {
 	f.secrets[id] = secret
 	f.secretsByName[secret.Spec.Annotations.Name] = id
 }
 
-// InternalGetSecret retrieves swarm.SecretSpec or nil from storage without preconditions
+// InternalGetSecret retrieves swarm.Secret or nil from storage without preconditions
 func (f *FakeSecretStore) InternalGetSecret(id string) *swarm.Secret {
 	secret, ok := f.secrets[id]
-
 	if !ok {
 		return nil
 	}
 	return secret
 }
 
-// InternalQuerySecrets retrieves all swarm.SecretSpec from storage while applying a transform
+// InternalQuerySecrets retrieves all swarm.Secret from storage while applying a transform
 func (f *FakeSecretStore) InternalQuerySecrets(transform func(*swarm.Secret) interface{}) []interface{} {
 	result := make([]interface{}, 0)
 
