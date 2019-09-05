@@ -164,7 +164,7 @@ func (f *fakeReconcilerClient) GenerateStackDependencies(stackID string) (interf
 	}
 
 	for index, service := range stackSpec.Services {
-		service, _ = fakes.CopyServiceSpec(service)
+		service = *fakes.CopyServiceSpec(service)
 		if service.Annotations.Labels == nil {
 			service.Annotations.Labels = map[string]string{}
 		}

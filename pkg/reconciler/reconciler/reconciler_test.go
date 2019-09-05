@@ -122,8 +122,8 @@ var _ = Describe("Reconciler", func() {
 		f.FakeStackStore.SpecifyError("invalidarg", fakes.FakeInvalidArg)
 
 		f.FakeServiceStore.SpecifyKeyPrefix(gogotypes.TimestampString(gogotypes.TimestampNow()))
-		f.FakeServiceStore.SpecifyError("unavailable", fakes.FakeUnavailable)
-		f.FakeServiceStore.SpecifyError("invalidarg", fakes.FakeInvalidArg)
+		f.FakeServiceStore.SpecifyErrorTrigger("unavailable", fakes.FakeUnavailable)
+		f.FakeServiceStore.SpecifyErrorTrigger("invalidarg", fakes.FakeInvalidArg)
 
 		stackFixture = &types.Stack{
 			Spec: types.StackSpec{
@@ -211,7 +211,7 @@ var _ = Describe("Reconciler", func() {
 				BeforeEach(func() {
 					// add the label "makemefail" to a service spec, which will
 					// cause the fake to return an error
-					f.FakeServiceStore.MarkInputForError("invalidarg", &stackFixture.Spec.Services[0])
+					f.FakeServiceStore.MarkServiceSpecForError("invalidarg", &stackFixture.Spec.Services[0])
 				})
 				It("should return an error", func() {
 					Expect(err).To(HaveOccurred())
@@ -251,9 +251,9 @@ var _ = Describe("Reconciler", func() {
 					interfaces.DefaultCreateServiceArg3)
 				// get the service from the fakeReconcilerClient directly, so
 				// we get the pointer
-				service, _ := r.cli.GetService(resp.ID, false)
-				f.FakeServiceStore.MarkInputForError("unavailable", &service.Spec)
-				f.FakeServiceStore.SpecifyError("unavailable", fakes.FakeUnavailable)
+				service, _ := r.cli.GetService(resp.ID, interfaces.DefaultGetServiceArg2)
+				f.FakeServiceStore.MarkServiceSpecForError("unavailable", &service.Spec)
+				f.FakeServiceStore.SpecifyErrorTrigger("unavailable", fakes.FakeUnavailable)
 			})
 		})
 
@@ -428,12 +428,12 @@ var _ = Describe("Reconciler", func() {
 
 				When("the service does not match the stack definition", func() {
 					BeforeEach(func() {
-						differentSpec, _ := fakes.CopyServiceSpec(spec)
+						differentSpec := fakes.CopyServiceSpec(spec)
 						differentSpec.Annotations.Labels = map[string]string{
 							types.StackLabel: localStackID,
 							"klaatu":         "barada nikto",
 						}
-						stackFixture.Spec.Services = append(stackFixture.Spec.Services, differentSpec)
+						stackFixture.Spec.Services = append(stackFixture.Spec.Services, *differentSpec)
 						localErr = r.cli.UpdateStack(localStackID, stackFixture.Spec, 1)
 					})
 					It("should return no error", func() {
