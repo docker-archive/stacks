@@ -90,7 +90,7 @@ func (f *fakeReconcilerClient) GenerateStackDependencies(stackID string) (interf
 		return interfaces.SnapshotStack{}, err
 	}
 
-	stackSpec, _ := fakes.CopyStackSpec(snapshot.CurrentSpec)
+	stackSpec := fakes.CopyStackSpec(snapshot.CurrentSpec)
 	configs := make([]interfaces.SnapshotResource, len(stackSpec.Configs))
 	services := make([]interfaces.SnapshotResource, len(stackSpec.Services))
 	secrets := make([]interfaces.SnapshotResource, len(stackSpec.Secrets))
@@ -190,7 +190,7 @@ func (f *fakeReconcilerClient) GenerateStackDependencies(stackID string) (interf
 			Meta: snapshot.Meta,
 			Name: snapshot.Name,
 		},
-		CurrentSpec: stackSpec,
+		CurrentSpec: *stackSpec,
 		Services:    services,
 		Configs:     configs,
 		Networks:    networks,

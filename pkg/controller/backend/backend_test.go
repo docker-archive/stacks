@@ -115,7 +115,7 @@ func TestStacksBackendCRUD(t *testing.T) {
 
 	response, err := b.CreateStack(stack1Spec)
 	require.NoError(err)
-	require.Equal("|0001", response.ID)
+	require.Equal("STK_1", response.ID)
 
 	// Create another stack
 	stack2Spec := types.StackSpec{
@@ -129,7 +129,7 @@ func TestStacksBackendCRUD(t *testing.T) {
 
 	response, err = b.CreateStack(stack2Spec)
 	require.NoError(err)
-	require.Equal("|0002", response.ID)
+	require.Equal("STK_2", response.ID)
 
 	// List both stacks
 	stacks, err := b.ListStacks()
@@ -152,10 +152,10 @@ func TestStacksBackendCRUD(t *testing.T) {
 	require.Empty(found)
 
 	// Get a stack by ID
-	stack, err := b.GetStack("|0001")
+	stack, err := b.GetStack("STK_1")
 	require.NoError(err)
 	require.True(reflect.DeepEqual(stack.Spec, stack1Spec))
-	require.Equal(stack.ID, "|0001")
+	require.Equal(stack.ID, "STK_1")
 	// TODO: require.Equal(stack.Orchestrator, types.OrchestratorSwarm)
 
 	// Update a stack
@@ -168,20 +168,20 @@ func TestStacksBackendCRUD(t *testing.T) {
 		},
 	}
 
-	stack2, err := b.GetStack("|0002")
+	stack2, err := b.GetStack("STK_2")
 	require.NoError(err)
-	err = b.UpdateStack("|0002", stack3Spec, stack2.Version.Index)
+	err = b.UpdateStack("STK_2", stack3Spec, stack2.Version.Index)
 	require.NoError(err)
 
 	// Get the updated stack by ID
-	stack, err = b.GetStack("|0002")
+	stack, err = b.GetStack("STK_2")
 	require.NoError(err)
 	require.True(reflect.DeepEqual(stack.Spec, stack3Spec))
-	require.Equal(stack.ID, "|0002")
+	require.Equal(stack.ID, "STK_2")
 
 	// Remove a stack
-	require.NoError(b.DeleteStack("|0002"))
-	_, err = b.GetStack("|0002")
+	require.NoError(b.DeleteStack("STK_2"))
+	_, err = b.GetStack("STK_2")
 	require.Error(err)
-	require.Contains(err.Error(), "stack not found")
+	require.Contains(err.Error(), "stack STK_2 not found")
 }
