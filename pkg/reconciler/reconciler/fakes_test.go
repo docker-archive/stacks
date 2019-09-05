@@ -139,7 +139,7 @@ func (f *fakeReconcilerClient) GenerateStackDependencies(stackID string) (interf
 	}
 
 	for name, network := range stackSpec.Networks {
-		network, _ = fakes.CopyNetworkCreate(network)
+		network = *fakes.CopyNetworkCreate(network)
 		if network.Labels == nil {
 			network.Labels = map[string]string{}
 		}
