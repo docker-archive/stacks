@@ -14,6 +14,27 @@ import (
 	"github.com/docker/stacks/pkg/types"
 )
 
+/*
+ *   fake_config_store.go implementation is a customized-but-duplicate of
+ *   fake_service_store.go, fake_secret_store.go, fake_network_store.go and
+ *   fake_stack_store.go.
+ *
+ *   fake_config_store.go represents the interfaces.SwarmConfigBackend portions
+ *   of the interfaces.BackendClient.
+ *
+ *   reconciler.fakeReconcilerClient exposes extra API to direct control
+ *   of the internals of the implementation for testing.
+ *
+ *   SortedIDs() []string
+ *   InternalDeleteConfig(id string) *swarm.Config
+ *   InternalQueryConfigs(transform func(*swarm.Config) interface{}) []interface
+ *   InternalGetConfig(id string) *swarm.Config
+ *   InternalAddConfig(id string, config *swarm.Config)
+ *   MarkConfigSpecForError(errorKey string, *swarm.ConfigSpec, ops ...string)
+ *   SpecifyKeyPrefix(keyPrefix string)
+ *   SpecifyErrorTrigger(errorKey string, err error)
+ */
+
 // FakeConfigStore contains the subset of Backend APIs for swarm.Config
 type FakeConfigStore struct {
 	mu          sync.Mutex
@@ -25,6 +46,7 @@ type FakeConfigStore struct {
 	configsByName map[string]string
 }
 
+// These type registrations are for TESTING in order to create deep copies
 func init() {
 	typeurl.Register(&swarm.ConfigSpec{}, "github.com/docker/swarm/ConfigSpec")
 	typeurl.Register(&swarm.Config{}, "github.com/docker/swarm/Config")
@@ -67,13 +89,16 @@ func (f *FakeConfigStore) resolveID(key string) string {
 	return id
 }
 
-func (f *FakeConfigStore) newID(objType string) string {
+func (f *FakeConfigStore) newID() string {
 	index := f.curID
 	f.curID++
-	return fmt.Sprintf("id_%s_%v", objType, index)
+	if len(f.keyPrefix) == 0 {
+		return fmt.Sprintf("CFG_%v", index)
+	}
+	return fmt.Sprintf("%s_CFG_%v", f.keyPrefix, index)
 }
 
-// GetConfigs implements the GetConfigs method of the BackendClient,
+// GetConfigs implements the GetConfigs method of the SwarmConfigBackend,
 // returning a list of configs. It only supports 1 kind of filter, which is
 // a filter for stack ID.
 func (f *FakeConfigStore) GetConfigs(opts dockerTypes.ConfigListOptions) ([]swarm.Config, error) {
@@ -98,14 +123,15 @@ func (f *FakeConfigStore) GetConfigs(opts dockerTypes.ConfigListOptions) ([]swar
 	configs := []swarm.Config{}
 
 	for _, key := range f.SortedIDs() {
-		// if we're filtering on stack ID, and this config doesn't match, then
-		// we should skip this config
 		config := f.configs[key]
+
+		// if we're filtering on stack ID, and this config doesn't
+		// match, then we should skip this config
 		if hasFilter && config.Spec.Annotations.Labels[types.StackLabel] != stackID {
 			continue
 		}
 		// otherwise, we should append this config to the set
-		if err := f.causeAnError("GetConfigs", config.Spec); err != nil {
+		if err := f.maybeTriggerAnError("GetConfigs", config.Spec); err != nil {
 			return nil, err
 		}
 		configs = append(configs, *CopyConfig(*config))
@@ -121,12 +147,12 @@ func (f *FakeConfigStore) GetConfig(idOrName string) (swarm.Config, error) {
 
 	id := f.resolveID(idOrName)
 
-	config, ok := f.configs[id]
-	if !ok {
+	config := f.InternalGetConfig(id)
+	if config == nil {
 		return swarm.Config{}, errdefs.NotFound(fmt.Errorf("config %s not found", id))
 	}
 
-	if err := f.causeAnError("GetConfig", config.Spec); err != nil {
+	if err := f.maybeTriggerAnError("GetConfig", config.Spec); err != nil {
 		return swarm.Config{}, err
 	}
 
@@ -138,7 +164,7 @@ func (f *FakeConfigStore) CreateConfig(spec swarm.ConfigSpec) (string, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
-	if err := f.causeAnError("CreateConfig", spec); err != nil {
+	if err := f.maybeTriggerAnError("CreateConfig", spec); err != nil {
 		return "", err
 	}
 
@@ -149,7 +175,7 @@ func (f *FakeConfigStore) CreateConfig(spec swarm.ConfigSpec) (string, error) {
 
 	// otherwise, create a config object
 	config := &swarm.Config{
-		ID: f.newID("config"),
+		ID: f.newID(),
 		Meta: swarm.Meta{
 			Version: swarm.Version{
 				Index: uint64(1),
@@ -182,11 +208,11 @@ func (f *FakeConfigStore) UpdateConfig(
 		return FakeInvalidArg
 	}
 
-	if err := f.causeAnError("UpdateConfig", config.Spec); err != nil {
+	if err := f.maybeTriggerAnError("UpdateConfig", config.Spec); err != nil {
 		return err
 	}
 
-	if err := f.causeAnError("UpdateConfig", spec); err != nil {
+	if err := f.maybeTriggerAnError("UpdateConfig", spec); err != nil {
 		return err
 	}
 
@@ -203,12 +229,12 @@ func (f *FakeConfigStore) RemoveConfig(idOrName string) error {
 
 	id := f.resolveID(idOrName)
 
-	config, ok := f.configs[id]
-	if !ok {
+	config := f.InternalGetConfig(id)
+	if config == nil {
 		return errdefs.NotFound(fmt.Errorf("config %s not found", id))
 	}
 
-	if err := f.causeAnError("RemoveConfig", config.Spec); err != nil {
+	if err := f.maybeTriggerAnError("RemoveConfig", config.Spec); err != nil {
 		return err
 	}
 
@@ -217,7 +243,8 @@ func (f *FakeConfigStore) RemoveConfig(idOrName string) error {
 	return nil
 }
 
-func (f *FakeConfigStore) causeAnError(operation string, spec swarm.ConfigSpec) error {
+// utility function for interfaces.SwarmConfigBackend calls to trigger an error
+func (f *FakeConfigStore) maybeTriggerAnError(operation string, spec swarm.ConfigSpec) error {
 	key := f.constructErrorMark(operation)
 	errorName, ok := spec.Annotations.Labels[key]
 	if !ok {
@@ -231,8 +258,8 @@ func (f *FakeConfigStore) causeAnError(operation string, spec swarm.ConfigSpec) 
 	return f.labelErrors[errorName]
 }
 
-// SpecifyError associates an error to a key
-func (f *FakeConfigStore) SpecifyError(errorKey string, err error) {
+// SpecifyErrorTrigger associates an error to an errorKey so that when calls interfaces.SwarmConfigBackend find a marked swarm.ConfigSpec an error is returned
+func (f *FakeConfigStore) SpecifyErrorTrigger(errorKey string, err error) {
 	f.labelErrors[errorKey] = err
 }
 
@@ -248,10 +275,11 @@ func (f *FakeConfigStore) constructErrorMark(operation string) string {
 	return f.keyPrefix + "." + operation + ".configError"
 }
 
-// MarkInputForError mark ConfigSpec with potential errors
-func (f *FakeConfigStore) MarkInputForError(errorKey string, input interface{}, ops ...string) {
+// MarkConfigSpecForError marks a ConfigSpec to trigger an error when calls from interfaces.SwarmConfigBackend are configured for the errorKey.
+// - All interfaces.SwarmConfigBackend calls may be triggered if len(ops)==0
+// - Otherwise, ops may be any of the following: GetConfigs, GetConfig, CreateConfig, UpdateConfig, RemoveConfig
+func (f *FakeConfigStore) MarkConfigSpecForError(errorKey string, spec *swarm.ConfigSpec, ops ...string) {
 
-	spec := input.(*swarm.ConfigSpec)
 	if spec.Annotations.Labels == nil {
 		spec.Annotations.Labels = make(map[string]string)
 	}
