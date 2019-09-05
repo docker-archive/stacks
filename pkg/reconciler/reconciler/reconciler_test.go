@@ -118,8 +118,8 @@ var _ = Describe("Reconciler", func() {
 		f = newFakeReconcilerClient()
 
 		f.FakeStackStore.SpecifyKeyPrefix(gogotypes.TimestampString(gogotypes.TimestampNow()))
-		f.FakeStackStore.SpecifyError("unavailable", fakes.FakeUnavailable)
-		f.FakeStackStore.SpecifyError("invalidarg", fakes.FakeInvalidArg)
+		f.FakeStackStore.SpecifyErrorTrigger("unavailable", fakes.FakeUnavailable)
+		f.FakeStackStore.SpecifyErrorTrigger("invalidarg", fakes.FakeInvalidArg)
 
 		f.FakeServiceStore.SpecifyKeyPrefix(gogotypes.TimestampString(gogotypes.TimestampNow()))
 		f.FakeServiceStore.SpecifyErrorTrigger("unavailable", fakes.FakeUnavailable)
@@ -236,7 +236,7 @@ var _ = Describe("Reconciler", func() {
 
 		When("a stack cannot be retrieved for other reasons", func() {
 			BeforeEach(func() {
-				f.FakeStackStore.MarkInputForError("unavailable", &stackFixture.Spec)
+				f.FakeStackStore.MarkStackSpecForError("unavailable", &stackFixture.Spec)
 			})
 			It("should return an error", func() {
 				Expect(err).To(HaveOccurred())

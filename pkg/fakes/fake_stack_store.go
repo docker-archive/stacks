@@ -1,13 +1,11 @@
 package fakes
 
 import (
-	"errors"
 	"fmt"
 	"sort"
 	"sync"
 
 	"github.com/containerd/typeurl"
-	gogotypes "github.com/gogo/protobuf/types"
 
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/errdefs"
@@ -18,11 +16,13 @@ import (
 
 // FakeStackStore stores stacks
 type FakeStackStore struct {
-	stacks map[string]*interfaces.SnapshotStack
 	sync.RWMutex
 	curID       int
 	labelErrors map[string]error
 	keyPrefix   string
+
+	stacks       map[string]*interfaces.SnapshotStack
+	stacksByName map[string]string
 }
 
 func init() {
@@ -30,28 +30,20 @@ func init() {
 }
 
 // CopyStackSpec duplicates the types.StackSpec
-func CopyStackSpec(spec types.StackSpec) (types.StackSpec, error) {
-	var payload *gogotypes.Any
-	var err error
-	payload, err = typeurl.MarshalAny(&spec)
-	if err != nil {
-		return types.StackSpec{}, err
-	}
-	iface, err := typeurl.UnmarshalAny(payload)
-	if err != nil {
-		return types.StackSpec{}, err
-	}
-	return *iface.(*types.StackSpec), nil
+func CopyStackSpec(spec types.StackSpec) *types.StackSpec {
+	payload, _ := typeurl.MarshalAny(&spec)
+	iface, _ := typeurl.UnmarshalAny(payload)
+	return iface.(*types.StackSpec)
 }
 
 func fakeConstructStack(snapshotStack *interfaces.SnapshotStack) types.Stack {
 
-	stackSpec, _ := CopyStackSpec(snapshotStack.CurrentSpec)
+	stackSpec := CopyStackSpec(snapshotStack.CurrentSpec)
 
 	stack := types.Stack{
 		ID:   snapshotStack.ID,
 		Meta: snapshotStack.Meta,
-		Spec: stackSpec,
+		Spec: *stackSpec,
 	}
 	return stack
 }
@@ -59,152 +51,200 @@ func fakeConstructStack(snapshotStack *interfaces.SnapshotStack) types.Stack {
 // NewFakeStackStore creates a new FakeStackStore
 func NewFakeStackStore() *FakeStackStore {
 	return &FakeStackStore{
-		stacks: make(map[string]*interfaces.SnapshotStack),
 		// Don't start from ID 0, to catch any uninitialized types.
-		curID:       1,
-		labelErrors: map[string]error{},
+		curID:        1,
+		stacks:       make(map[string]*interfaces.SnapshotStack),
+		stacksByName: map[string]string{},
+		labelErrors:  map[string]error{},
 	}
 }
 
-var errNotFound = errdefs.NotFound(errors.New("stack not found"))
+// resolveID takes a value that might be an ID or and figures out which it is,
+// returning the ID
+func (s *FakeStackStore) resolveID(key string) string {
+	id, ok := s.stacksByName[key]
+	if !ok {
+		return key
+	}
+	return id
+}
+
+func (s *FakeStackStore) newID() string {
+	index := s.curID
+	s.curID++
+	if len(s.keyPrefix) == 0 {
+		return fmt.Sprintf("STK_%v", index)
+	}
+	return fmt.Sprintf("%s_STK_%v", s.keyPrefix, index)
+}
 
 // AddStack adds a stack to the store.
-func (s *FakeStackStore) AddStack(stackSpec types.StackSpec) (string, error) {
+func (s *FakeStackStore) AddStack(spec types.StackSpec) (string, error) {
 	s.Lock()
 	defer s.Unlock()
 
-	stackSpec, _ = CopyStackSpec(stackSpec)
+	if err := s.maybeTriggerAnError("AddStack", spec); err != nil {
+		return "", err
+	}
+
+	if _, ok := s.stacksByName[spec.Annotations.Name]; ok {
+		return "", FakeInvalidArg
+	}
+
+	copied := CopyStackSpec(spec)
 
 	snapshot := &interfaces.SnapshotStack{
 		SnapshotResource: interfaces.SnapshotResource{
-			ID: fmt.Sprintf("%s|%04d", s.keyPrefix, s.curID),
+			ID: s.newID(),
 			Meta: swarm.Meta{
 				Version: swarm.Version{
-					Index: 1,
+					Index: uint64(1),
 				},
 			},
-			Name: stackSpec.Annotations.Name,
+			Name: copied.Annotations.Name,
 		},
-		CurrentSpec: stackSpec,
-	}
-	s.stacks[snapshot.ID] = snapshot
-
-	s.curID++
-	return snapshot.ID, s.causeAnError(nil, "AddStack", stackSpec)
-}
-
-func (s *FakeStackStore) getSnapshotStack(id string) (*interfaces.SnapshotStack, error) {
-	snapshot, ok := s.stacks[id]
-	if !ok {
-		return nil, errNotFound
+		CurrentSpec: *copied,
 	}
 
-	return snapshot, nil
-}
+	s.InternalAddStack(snapshot.ID, snapshot)
 
-func (s *FakeStackStore) getStack(id string) (types.Stack, error) {
-	snapshot, err := s.getSnapshotStack(id)
-	if err != nil {
-		return types.Stack{}, errNotFound
-	}
-	return fakeConstructStack(snapshot), nil
+	return snapshot.ID, nil
 }
 
 // UpdateStack updates the stack in the store.
-func (s *FakeStackStore) UpdateStack(id string, stackSpec types.StackSpec, version uint64) error {
+func (s *FakeStackStore) UpdateStack(idOrName string, stackSpec types.StackSpec, version uint64) error {
 	s.Lock()
 	defer s.Unlock()
 
-	stackSpec, _ = CopyStackSpec(stackSpec)
+	copied := CopyStackSpec(stackSpec)
 
-	existing, err := s.getSnapshotStack(id)
-	if err != nil {
-		return errNotFound
+	id := s.resolveID(idOrName)
+
+	stack := s.InternalGetStack(id)
+	if stack == nil {
+		return errdefs.NotFound(fmt.Errorf("stack %s not found", id))
 	}
 
-	if existing.Version.Index != version {
+	if stack.Version.Index != version {
 		return fmt.Errorf("update out of sequence")
 	}
-	existing.Version.Index++
-	stackID := existing.ID
 
-	for _, service := range stackSpec.Services {
+	if err := s.maybeTriggerAnError("UpdateStack", stack.CurrentSpec); err != nil {
+		return err
+	}
+
+	if err := s.maybeTriggerAnError("UpdateStack", stackSpec); err != nil {
+		return err
+	}
+
+	stack.Version.Index++
+	stackID := stack.ID
+
+	for _, service := range copied.Services {
 		if service.Annotations.Labels == nil {
 			service.Annotations.Labels = map[string]string{}
 		}
 		service.Annotations.Labels[types.StackLabel] = stackID
 	}
-	for _, config := range stackSpec.Configs {
+	for _, config := range copied.Configs {
 		if config.Annotations.Labels == nil {
 			config.Annotations.Labels = map[string]string{}
 		}
 		config.Annotations.Labels[types.StackLabel] = stackID
 	}
-	for _, secret := range stackSpec.Secrets {
+	for _, secret := range copied.Secrets {
 		if secret.Annotations.Labels == nil {
 			secret.Annotations.Labels = map[string]string{}
 		}
 		secret.Annotations.Labels[types.StackLabel] = stackID
 	}
-	for _, network := range stackSpec.Networks {
+	for _, network := range copied.Networks {
 		if network.Labels == nil {
 			network.Labels = map[string]string{}
 		}
 		network.Labels[types.StackLabel] = stackID
 	}
-	existing.CurrentSpec = stackSpec
-	s.stacks[id] = existing
-	return s.causeAnError(nil, "UpdateStack", stackSpec)
+	stack.CurrentSpec = *copied
+	s.stacks[id] = stack
+	return nil
 }
 
 // UpdateSnapshotStack updates the snapshot in the store.
-func (s *FakeStackStore) UpdateSnapshotStack(id string, snapshot interfaces.SnapshotStack, version uint64) error {
+func (s *FakeStackStore) UpdateSnapshotStack(idOrName string, snapshot interfaces.SnapshotStack, version uint64) error {
 	s.Lock()
 	defer s.Unlock()
 
-	existing, err := s.getSnapshotStack(id)
-	if err != nil {
-		return errNotFound
+	id := s.resolveID(idOrName)
+
+	stack := s.InternalGetStack(id)
+	if stack == nil {
+		return errdefs.NotFound(fmt.Errorf("stack %s not found", id))
 	}
 
-	if existing.Version.Index != version {
+	if stack.Version.Index != version {
 		return fmt.Errorf("update out of sequence")
 	}
-	existing.Version.Index++
+
+	if err := s.maybeTriggerAnError("UpdateSnapshotStack", stack.CurrentSpec); err != nil {
+		return err
+	}
+
+	if err := s.maybeTriggerAnError("UpdateSnapshotStack", snapshot.CurrentSpec); err != nil {
+		return err
+	}
+
+	stack.Version.Index++
 
 	// No accidental or sly changes to the StackSpec are permitted
-	existing.Services = snapshot.Services
-	existing.Configs = snapshot.Configs
-	existing.Secrets = snapshot.Secrets
-	existing.Networks = snapshot.Networks
+	stack.Services = snapshot.Services
+	stack.Configs = snapshot.Configs
+	stack.Secrets = snapshot.Secrets
+	stack.Networks = snapshot.Networks
 
-	s.stacks[id] = existing
-	return s.causeAnError(nil, "UpdateSnapshotStack", existing.CurrentSpec)
+	s.stacks[id] = stack
+	return nil
 }
 
 // DeleteStack removes a stack from the store.
-func (s *FakeStackStore) DeleteStack(id string) error {
+func (s *FakeStackStore) DeleteStack(idOrName string) error {
 	s.Lock()
 	defer s.Unlock()
-	stack, err := s.getStack(id)
-	delete(s.stacks, id)
-	return s.causeAnError(err, "DeleteStack", stack.Spec)
+
+	id := s.resolveID(idOrName)
+
+	stack := s.InternalGetStack(id)
+	if stack == nil {
+		return errdefs.NotFound(fmt.Errorf("stack %s not found", id))
+	}
+	if err := s.maybeTriggerAnError("DeleteStack", stack.CurrentSpec); err != nil {
+		return err
+	}
+	s.InternalDeleteStack(id)
+	return nil
 }
 
 // GetStack retrieves a single stack from the store.
-func (s *FakeStackStore) GetStack(id string) (types.Stack, error) {
+func (s *FakeStackStore) GetStack(idOrName string) (types.Stack, error) {
 	s.RLock()
 	defer s.RUnlock()
-	stack, err := s.getStack(id)
-	return stack, s.causeAnError(err, "GetStack", stack.Spec)
+	id := s.resolveID(idOrName)
+	stack := s.InternalGetStack(id)
+	if stack == nil {
+		return types.Stack{}, errdefs.NotFound(fmt.Errorf("stack %s not found", id))
+	}
+	return fakeConstructStack(stack), s.maybeTriggerAnError("GetStack", stack.CurrentSpec)
 }
 
 // GetSnapshotStack retrieves a single stack from the store.
-func (s *FakeStackStore) GetSnapshotStack(id string) (*interfaces.SnapshotStack, error) {
+func (s *FakeStackStore) GetSnapshotStack(idOrName string) (*interfaces.SnapshotStack, error) {
 	s.RLock()
 	defer s.RUnlock()
-	snapshot, err := s.getSnapshotStack(id)
-	return snapshot, s.causeAnError(err, "GetSnapshotStack", snapshot.CurrentSpec)
+	id := s.resolveID(idOrName)
+	stack := s.InternalGetStack(id)
+	if stack == nil {
+		return &interfaces.SnapshotStack{}, errdefs.NotFound(fmt.Errorf("stack %s not found", id))
+	}
+	return stack, s.maybeTriggerAnError("GetSnapshotStack", stack.CurrentSpec)
 }
 
 // ListStacks returns all known stacks from the store.
@@ -214,16 +254,15 @@ func (s *FakeStackStore) ListStacks() ([]types.Stack, error) {
 	stacks := []types.Stack{}
 	for _, key := range s.SortedIDs() {
 		snapshot := s.stacks[key]
+		if err := s.maybeTriggerAnError("ListStacks", snapshot.CurrentSpec); err != nil {
+			return nil, err
+		}
 		stacks = append(stacks, fakeConstructStack(snapshot))
 	}
 	return stacks, nil
 }
 
-func (s *FakeStackStore) causeAnError(err error, operation string, spec types.StackSpec) error {
-	if err != nil {
-		return err
-	}
-
+func (s *FakeStackStore) maybeTriggerAnError(operation string, spec types.StackSpec) error {
 	key := s.constructErrorMark(operation)
 	errorName, ok := spec.Annotations.Labels[key]
 	if !ok {
@@ -237,8 +276,8 @@ func (s *FakeStackStore) causeAnError(err error, operation string, spec types.St
 	return s.labelErrors[errorName]
 }
 
-// SpecifyError associates an error to a key
-func (s *FakeStackStore) SpecifyError(errorKey string, err error) {
+// SpecifyErrorTrigger associates an error to an errorKey so that when calls to interfaces.StackStore find a marked types.StackSpec an error is returned
+func (s *FakeStackStore) SpecifyErrorTrigger(errorKey string, err error) {
 	s.labelErrors[errorKey] = err
 }
 
@@ -254,9 +293,11 @@ func (s *FakeStackStore) constructErrorMark(operation string) string {
 	return s.keyPrefix + "." + operation + ".storeError"
 }
 
-// MarkInputForError mark StackSpec with potential errors
-func (s *FakeStackStore) MarkInputForError(errorKey string, input interface{}, ops ...string) {
-	spec := input.(*types.StackSpec)
+// MarkStackSpecForError marks a ConfigSpec to trigger an error when calls from interfaces.SwarmConfigBackend are configured for the errorKey.
+// - All interfaces.SwarmConfigBackend calls may be triggered if len(ops)==0
+// - Otherwise, ops may be any of the following: ListStacks, GetStack, AddStack, UpdateStack, DeleteStack, UpdateSnapshotStack, GetSnapshotStack
+func (s *FakeStackStore) MarkStackSpecForError(errorKey string, spec *types.StackSpec, ops ...string) {
+
 	if spec.Annotations.Labels == nil {
 		spec.Annotations.Labels = make(map[string]string)
 	}
@@ -274,6 +315,7 @@ func (s *FakeStackStore) MarkInputForError(errorKey string, input interface{}, o
 // InternalAddStack adds types.Stack to storage without preconditions
 func (s *FakeStackStore) InternalAddStack(id string, snapshot *interfaces.SnapshotStack) {
 	s.stacks[id] = snapshot
+	s.stacksByName[snapshot.Name] = id
 }
 
 // InternalGetStack retrieves types.Stack or nil from storage without preconditions
@@ -310,6 +352,7 @@ func (s *FakeStackStore) InternalDeleteStack(id string) *interfaces.SnapshotStac
 		return nil
 	}
 	delete(s.stacks, id)
+	delete(s.stacksByName, snapshot.Name)
 	return snapshot
 }
 
