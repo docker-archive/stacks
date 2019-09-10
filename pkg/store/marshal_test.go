@@ -78,5 +78,5 @@ func TestMarshalUnmarshal(t *testing.T) {
 	// difficult.
 	unstack, err := ConstructStack(resource)
 	require.NoError(t, err, "error constructing stacks")
-	assert.Equal(t, stack, &unstack)
+	assert.Equal(t, *stack, *unstack)
 }

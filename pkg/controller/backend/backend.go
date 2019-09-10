@@ -30,13 +30,15 @@ type DefaultStacksBackend struct {
 }
 
 /*
- *  FIXME:  In the current state of the code, it looks like DefaultStacksBackend is not required.  Only standalone
- *  called NewDefaultStacksBackend and only standalone needs to split the shim into these sub-interfaces.
+ *  FIXME:  In the current state of the code, it looks like DefaultStacksBackend
+ *  is not required.  Only standalone called NewDefaultStacksBackend and only
+ *  standalone needs to split the shim into these sub-interfaces.
+ *
  *  Also CreateStack is duplicated here and in the fakeReconcilerClient.
  *
- *  That all said, it might be good to keep something like DefaultStacksBackend as a common entry point
- *  for shim and fakes especially if the fake's error triggers could be shared between the shim and fake
- *  calls.
+ *  That all said, it might be good to keep something like DefaultStacksBackend
+ *  as a common entry point for shim and fakes especially if the fake's error
+ *  triggers could be shared between the shim and fake calls.
  */
 
 // NewDefaultStacksBackend creates a new DefaultStacksBackend.
@@ -61,6 +63,11 @@ func (b *DefaultStacksBackend) CreateStack(stackSpec types.StackSpec) (types.Sta
 	return types.StackCreateResponse{
 		ID: id,
 	}, err
+}
+
+// GetSnapshotStack retrieves a snapshot stack by its ID.
+func (b *DefaultStacksBackend) GetSnapshotStack(id string) (interfaces.SnapshotStack, error) {
+	return b.StackStore.GetSnapshotStack(id)
 }
 
 // GetStack retrieves a stack by its ID.

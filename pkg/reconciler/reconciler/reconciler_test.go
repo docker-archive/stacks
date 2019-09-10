@@ -50,11 +50,22 @@ func (f *fakeObjectChangeNotifier) Notify(kind, id string) {
 // ConsistOfServices is a matcher that verifies that a map of services contains
 // only services whose specs match the provided specs.
 func ConsistOfServices(specsArg []swarm.ServiceSpec) GomegaMatcher {
+	return ConsistOfServicesLabelOption(specsArg, true)
+}
+
+func ConsistOfServicesKeepStackID(specsArg []swarm.ServiceSpec) GomegaMatcher {
+	return ConsistOfServicesLabelOption(specsArg, false)
+}
+
+func ConsistOfServicesLabelOption(specsArg []swarm.ServiceSpec, removeStackID bool) GomegaMatcher {
 	// quick function to convert the map to a slice of ServiceSpecs
 	serviceSpecs := func(f *fakeReconcilerClient) []swarm.ServiceSpec {
 		allServices, _ := f.GetServices(dockerTypes.ServiceListOptions{})
 		specs := make([]swarm.ServiceSpec, 0, len(allServices))
 		for _, service := range allServices {
+			if removeStackID && service.Spec.Annotations.Labels != nil {
+				delete(service.Spec.Annotations.Labels, types.StackLabel)
+			}
 			specs = append(specs, service.Spec)
 		}
 		return specs
@@ -443,7 +454,7 @@ var _ = Describe("Reconciler", func() {
 						Expect(err).ToNot(HaveOccurred())
 					})
 					It("should update the resource's spec", func() {
-						Expect(f).To(ConsistOfServices(stackFixture.Spec.Services))
+						Expect(f).To(ConsistOfServicesKeepStackID(stackFixture.Spec.Services))
 						var x, xerr = r.cli.GetService(id, interfaces.DefaultGetServiceArg2)
 						Expect(xerr).ToNot(HaveOccurred())
 						Expect(x.Meta.Version.Index).To(Equal(uint64(2)))
@@ -471,7 +482,7 @@ var _ = Describe("Reconciler", func() {
 						Expect(err).To(BeNil())
 					})
 					It("should perform no updates", func() {
-						Expect(f).To(ConsistOfServices(stackFixture.Spec.Services))
+						Expect(f).To(ConsistOfServicesKeepStackID(stackFixture.Spec.Services))
 						var x, xerr = r.cli.GetService(id, interfaces.DefaultGetServiceArg2)
 						Expect(xerr).ToNot(HaveOccurred())
 						Expect(x.Meta.Version.Index).To(Equal(uint64(1)))

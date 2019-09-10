@@ -213,7 +213,6 @@ func (f *FakeSecretStore) UpdateSecret(
 	}
 
 	if err := f.maybeTriggerAnError("UpdateSecret", spec); err != nil {
-
 		return err
 	}
 

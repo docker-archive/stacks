@@ -8,6 +8,7 @@ import (
 	events "github.com/docker/docker/api/types/events"
 	filters "github.com/docker/docker/api/types/filters"
 	swarm "github.com/docker/docker/api/types/swarm"
+	interfaces0 "github.com/docker/stacks/pkg/interfaces"
 	types0 "github.com/docker/stacks/pkg/types"
 	gomock "github.com/golang/mock/gomock"
 	reflect "reflect"
@@ -255,6 +256,19 @@ func (_m *MockBackendClient) GetStack(_param0 string) (types0.Stack, error) {
 // GetStack indicates an expected call of GetStack
 func (_mr *MockBackendClientMockRecorder) GetStack(arg0 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCallWithMethodType(_mr.mock, "GetStack", reflect.TypeOf((*MockBackendClient)(nil).GetStack), arg0)
+}
+
+// GetSnapshotStack mocks base method
+func (_m *MockBackendClient) GetSnapshotStack(_param0 string) (interfaces0.SnapshotStack, error) {
+	ret := _m.ctrl.Call(_m, "GetSnapshotStack", _param0)
+	ret0, _ := ret[0].(interfaces0.SnapshotStack)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetSnapshotStack indicates an expected call of GetSnapshotStack
+func (_mr *MockBackendClientMockRecorder) GetSnapshotStack(arg0 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCallWithMethodType(_mr.mock, "GetSnapshotStack", reflect.TypeOf((*MockBackendClient)(nil).GetSnapshotStack), arg0)
 }
 
 // GetTask mocks base method
