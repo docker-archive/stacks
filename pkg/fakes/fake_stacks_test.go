@@ -5,69 +5,11 @@ import (
 	"reflect"
 	"testing"
 
-	dockerTypes "github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/errdefs"
 
 	"github.com/docker/stacks/pkg/interfaces"
-	"github.com/docker/stacks/pkg/types"
 	"github.com/stretchr/testify/require"
 )
-
-// generateStackFixtures creates some fixtures
-// as well as marking the EVEN ones as belonging
-// to types.StackLabel
-func generateStackFixtures(n int, label string) []types.Stack {
-	fixtures := make([]types.Stack, n)
-	var i int
-	for i < n {
-		specName := fmt.Sprintf("%dstack", i)
-		imageName := fmt.Sprintf("%dimage", i)
-		spec := getTestStackSpec(specName, imageName)
-		fixtures[i] = types.Stack{
-			Spec: spec,
-		}
-		if i%2 == 0 {
-			fixtures[i].Spec.Annotations.Labels = make(map[string]string)
-			fixtures[i].Spec.Annotations.Labels[types.StackLabel] = label
-		}
-
-		i = i + 1
-	}
-	return fixtures
-}
-
-func getTestStackSpec(name, image string) types.StackSpec {
-
-	ncr := getTestNetworkRequest(name, image)
-
-	spec := types.StackSpec{
-		Annotations: swarm.Annotations{
-			Name: name,
-		},
-		Services: []swarm.ServiceSpec{
-			getTestServiceSpec(name, image),
-		},
-		Configs: []swarm.ConfigSpec{
-			getTestConfigSpec(name),
-		},
-		Secrets: []swarm.SecretSpec{
-			getTestSecretSpec(name),
-		},
-		Networks: map[string]dockerTypes.NetworkCreate{
-			ncr.Name: ncr.NetworkCreate,
-		},
-	}
-
-	return spec
-}
-
-func getTestStack(name, image string) types.Stack {
-	stackSpec := getTestStackSpec(name, image)
-	return types.Stack{
-		Spec: stackSpec,
-	}
-}
 
 func TestUpdateFakeStackStore(t *testing.T) {
 	require := require.New(t)
@@ -75,8 +17,8 @@ func TestUpdateFakeStackStore(t *testing.T) {
 	store.SpecifyKeyPrefix("TestUpdateFakeStackStore")
 	store.SpecifyErrorTrigger("TestUpdateFakeStackStore", FakeUnimplemented)
 
-	stack1 := getTestStack("stack1", "image1")
-	stack2 := getTestStack("stack2", "image2")
+	stack1 := GetTestStack("stack1", "image1")
+	stack2 := GetTestStack("stack2", "image2")
 
 	id1, err := store.AddStack(stack1.Spec)
 	require.NoError(err)
@@ -120,7 +62,7 @@ func TestIsolationFakeStackStore(t *testing.T) {
 	require := require.New(t)
 	store := NewFakeStackStore()
 
-	fixtures := generateStackFixtures(1, "TestIsolationFakeStackStore")
+	fixtures := GenerateStackFixtures(1, "TestIsolationFakeStackStore")
 	spec := &fixtures[0].Spec
 
 	id, err := store.AddStack(*spec)
@@ -159,7 +101,7 @@ func TestSpecifiedErrorsFakeStackStore(t *testing.T) {
 	store.SpecifyKeyPrefix("SpecifiedError")
 	store.SpecifyErrorTrigger("SpecifiedError", FakeUnimplemented)
 
-	fixtures := generateStackFixtures(10, "TestSpecifiedErrorsFakeStackStore")
+	fixtures := GenerateStackFixtures(10, "TestSpecifiedErrorsFakeStackStore")
 
 	var id string
 	var err error
@@ -279,7 +221,7 @@ func TestCRDFakeStackStore(t *testing.T) {
 	require.Empty(stack)
 
 	// Add three items
-	fixtures := generateStackFixtures(4, "TestCRDFakeStackStore")
+	fixtures := GenerateStackFixtures(4, "TestCRDFakeStackStore")
 	for i := 0; i < 3; i++ {
 		id, err := store.AddStack(fixtures[i].Spec)
 		require.NoError(err, fmt.Sprintf("failed to add fixture %d", i))

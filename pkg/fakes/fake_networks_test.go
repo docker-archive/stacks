@@ -7,48 +7,11 @@ import (
 
 	dockerTypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/errdefs"
 
 	"github.com/docker/stacks/pkg/interfaces"
-	"github.com/docker/stacks/pkg/types"
 	"github.com/stretchr/testify/require"
 )
-
-// generateNetworkFixtures creates some fixtures
-// as well as marking the EVEN ones as belonging
-// to types.StackLabel
-func generateNetworkFixtures(n int, label string) []dockerTypes.NetworkCreateRequest {
-	fixtures := make([]dockerTypes.NetworkCreateRequest, n)
-	var i int
-	for i < n {
-		specName := fmt.Sprintf("%dnetwork", i)
-		driverName := fmt.Sprintf("%ddriver", i)
-		nr := getTestNetworkRequest(specName, driverName)
-		fixtures[i] = nr
-		if i%2 == 0 {
-			fixtures[i].NetworkCreate.Labels = make(map[string]string)
-			fixtures[i].NetworkCreate.Labels[types.StackLabel] = label
-		}
-
-		i = i + 1
-	}
-	return fixtures
-}
-
-func getTestNetworkRequest(name, driver string) dockerTypes.NetworkCreateRequest {
-
-	networkCreate := dockerTypes.NetworkCreate{
-		Driver:     driver,
-		IPAM:       &network.IPAM{},
-		ConfigFrom: &network.ConfigReference{},
-	}
-
-	return dockerTypes.NetworkCreateRequest{
-		Name:          name,
-		NetworkCreate: networkCreate,
-	}
-}
 
 func TestSimpleFakeNetworkStore(t *testing.T) {
 	require := require.New(t)
@@ -56,7 +19,7 @@ func TestSimpleFakeNetworkStore(t *testing.T) {
 	store.SpecifyKeyPrefix("TestUpdateFakeNetworkStore")
 	store.SpecifyErrorTrigger("TestUpdateFakeNetworkStore", FakeUnimplemented)
 
-	network1 := getTestNetworkRequest("network1", "driver1")
+	network1 := GetTestNetworkRequest("network1", "driver1")
 
 	id1, err := store.CreateNetwork(network1)
 	require.NoError(err)
@@ -86,7 +49,7 @@ func TestIsolationFakeNetworkStore(t *testing.T) {
 	require := require.New(t)
 	store := NewFakeNetworkStore()
 
-	fixtures := generateNetworkFixtures(1, "TestIsolationFakeNetworkStore")
+	fixtures := GenerateNetworkFixtures(1, "TestIsolationFakeNetworkStore")
 	spec := &fixtures[0]
 
 	id, err := store.CreateNetwork(*spec)
@@ -115,7 +78,7 @@ func TestSpecifiedErrorsFakeNetworkStore(t *testing.T) {
 	store.SpecifyKeyPrefix("SpecifiedError")
 	store.SpecifyErrorTrigger("SpecifiedError", FakeUnimplemented)
 
-	fixtures := generateNetworkFixtures(10, "TestSpecifiedErrorsFakeNetworkStore")
+	fixtures := GenerateNetworkFixtures(10, "TestSpecifiedErrorsFakeNetworkStore")
 
 	var id string
 	var err error
@@ -223,7 +186,7 @@ func TestCRDFakeNetworkStore(t *testing.T) {
 	require.Empty(network)
 
 	// Add three items
-	fixtures := generateNetworkFixtures(4, "TestCRDFakeNetworkStore")
+	fixtures := GenerateNetworkFixtures(4, "TestCRDFakeNetworkStore")
 	for i := 0; i < 3; i++ {
 		id, err := store.CreateNetwork(fixtures[i])
 		require.NoError(err, fmt.Sprintf("failed to add fixture %d", i))

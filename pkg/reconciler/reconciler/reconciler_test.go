@@ -59,7 +59,7 @@ func ConsistOfServicesKeepStackID(specsArg []swarm.ServiceSpec) GomegaMatcher {
 
 func ConsistOfServicesLabelOption(specsArg []swarm.ServiceSpec, removeStackID bool) GomegaMatcher {
 	// quick function to convert the map to a slice of ServiceSpecs
-	serviceSpecs := func(f *fakeReconcilerClient) []swarm.ServiceSpec {
+	serviceSpecs := func(f *fakes.FakeReconcilerClient) []swarm.ServiceSpec {
 		allServices, _ := f.GetServices(dockerTypes.ServiceListOptions{})
 		specs := make([]swarm.ServiceSpec, 0, len(allServices))
 		for _, service := range allServices {
@@ -114,7 +114,7 @@ var _ = Describe("Reconciler", func() {
 		// users
 		r *reconciler
 
-		f *fakeReconcilerClient
+		f *fakes.FakeReconcilerClient
 
 		// we'll need a fake ObjectChangeNotifier, so we can construct the
 		// Reconciler
@@ -126,7 +126,7 @@ var _ = Describe("Reconciler", func() {
 
 	BeforeEach(func() {
 		// first things first, create a fakeReconcilerClient
-		f = newFakeReconcilerClient()
+		f = fakes.NewFakeReconcilerClient()
 
 		f.FakeStackStore.SpecifyKeyPrefix(gogotypes.TimestampString(gogotypes.TimestampNow()))
 		f.FakeStackStore.SpecifyErrorTrigger("unavailable", fakes.FakeUnavailable)

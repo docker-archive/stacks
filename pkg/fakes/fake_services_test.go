@@ -11,52 +11,8 @@ import (
 	"github.com/docker/docker/errdefs"
 
 	"github.com/docker/stacks/pkg/interfaces"
-	"github.com/docker/stacks/pkg/types"
 	"github.com/stretchr/testify/require"
 )
-
-func generateServiceFixtures(n int, label string) []swarm.Service {
-	fixtures := make([]swarm.Service, n)
-	var i int
-	for i < n {
-		specName := fmt.Sprintf("%dservice", i)
-		imageName := fmt.Sprintf("%dimage", i)
-		spec := getTestServiceSpec(specName, imageName)
-		fixtures[i] = swarm.Service{
-			Spec: spec,
-		}
-		if i%2 == 0 {
-			fixtures[i].Spec.Annotations.Labels = make(map[string]string)
-			fixtures[i].Spec.Annotations.Labels[types.StackLabel] = label
-		}
-
-		i = i + 1
-	}
-	return fixtures
-}
-
-func getTestServiceSpec(name, image string) swarm.ServiceSpec {
-
-	spec := swarm.ServiceSpec{
-		Annotations: swarm.Annotations{
-			Name: name,
-		},
-		TaskTemplate: swarm.TaskSpec{
-			ContainerSpec: &swarm.ContainerSpec{
-				Image: image,
-			},
-		},
-	}
-
-	return spec
-}
-
-func getTestService(name, image string) swarm.Service {
-	serviceSpec := getTestServiceSpec(name, image)
-	return swarm.Service{
-		Spec: serviceSpec,
-	}
-}
 
 func TestUpdateFakeServiceStore(t *testing.T) {
 	require := require.New(t)
@@ -64,8 +20,8 @@ func TestUpdateFakeServiceStore(t *testing.T) {
 	store.SpecifyKeyPrefix("TestUpdateFakeServiceStore")
 	store.SpecifyErrorTrigger("TestUpdateFakeServiceStore", FakeUnimplemented)
 
-	service1 := getTestService("service1", "image1")
-	service2 := getTestService("service2", "image2")
+	service1 := GetTestService("service1", "image1")
+	service2 := GetTestService("service2", "image2")
 
 	resp, err := store.CreateService(service1.Spec,
 		interfaces.DefaultCreateServiceArg2,
@@ -115,7 +71,7 @@ func TestIsolationFakeServiceStore(t *testing.T) {
 	require := require.New(t)
 	store := NewFakeServiceStore()
 
-	fixtures := generateServiceFixtures(1, "TestIsolationFakeServiceStore")
+	fixtures := GenerateServiceFixtures(1, "TestIsolationFakeServiceStore")
 	spec := &fixtures[0].Spec
 
 	resp, err := store.CreateService(*spec, interfaces.DefaultCreateServiceArg2, interfaces.DefaultCreateServiceArg3)
@@ -154,7 +110,7 @@ func TestSpecifiedErrorsFakeServiceStore(t *testing.T) {
 	store.SpecifyKeyPrefix("SpecifiedError")
 	store.SpecifyErrorTrigger("SpecifiedError", FakeUnimplemented)
 
-	fixtures := generateServiceFixtures(10, "TestSpecifiedErrorsFakeServiceStore")
+	fixtures := GenerateServiceFixtures(10, "TestSpecifiedErrorsFakeServiceStore")
 
 	var err error
 	var resp *dockerTypes.ServiceCreateResponse
@@ -286,7 +242,7 @@ func TestCRDFakeServiceStore(t *testing.T) {
 	require.Empty(service)
 
 	// Add three items
-	fixtures := generateServiceFixtures(4, "TestCRDFakeServiceStore")
+	fixtures := GenerateServiceFixtures(4, "TestCRDFakeServiceStore")
 	for i := 0; i < 3; i++ {
 		resp, err := store.CreateService(fixtures[i].Spec,
 			interfaces.DefaultCreateServiceArg2,

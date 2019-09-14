@@ -59,6 +59,13 @@ func CopyStackSpec(spec types.StackSpec) *types.StackSpec {
 	return iface.(*types.StackSpec)
 }
 
+// CopySnapshotStack duplicates the interfaces.SnapshotStack
+func CopySnapshotStack(snapshot interfaces.SnapshotStack) *interfaces.SnapshotStack {
+	payload, _ := typeurl.MarshalAny(&snapshot)
+	iface, _ := typeurl.UnmarshalAny(payload)
+	return iface.(*interfaces.SnapshotStack)
+}
+
 func fakeConstructStack(snapshotStack *interfaces.SnapshotStack) types.Stack {
 
 	stackSpec := CopyStackSpec(snapshotStack.CurrentSpec)
@@ -114,37 +121,10 @@ func (s *FakeStackStore) AddStack(spec types.StackSpec) (string, error) {
 		return "", FakeInvalidArg
 	}
 
+	// Ensuring there are no shared data with the caller
 	copied := CopyStackSpec(spec)
 
 	stackID := s.newID()
-
-	for _, service := range copied.Services {
-		if service.Annotations.Labels == nil {
-			service.Annotations.Labels = map[string]string{}
-		}
-		service.Annotations.Labels[types.StackLabel] = stackID
-	}
-
-	for _, config := range copied.Configs {
-		if config.Annotations.Labels == nil {
-			config.Annotations.Labels = map[string]string{}
-		}
-		config.Annotations.Labels[types.StackLabel] = stackID
-	}
-
-	for _, secret := range copied.Secrets {
-		if secret.Annotations.Labels == nil {
-			secret.Annotations.Labels = map[string]string{}
-		}
-		secret.Annotations.Labels[types.StackLabel] = stackID
-	}
-
-	for _, network := range copied.Networks {
-		if network.Labels == nil {
-			network.Labels = map[string]string{}
-		}
-		network.Labels[types.StackLabel] = stackID
-	}
 
 	snapshot := &interfaces.SnapshotStack{
 		SnapshotResource: interfaces.SnapshotResource{
@@ -173,20 +153,18 @@ func (s *FakeStackStore) UpdateStack(idOrName string, stackSpec types.StackSpec,
 	s.Lock()
 	defer s.Unlock()
 
-	copied := CopyStackSpec(stackSpec)
-
 	id := s.resolveID(idOrName)
 
-	stack := s.InternalGetStack(id)
-	if stack == nil {
+	existing := s.InternalGetStack(id)
+	if existing == nil {
 		return errdefs.NotFound(fmt.Errorf("stack %s not found", id))
 	}
 
-	if stack.Version.Index != version {
+	if existing.Version.Index != version {
 		return fmt.Errorf("update out of sequence")
 	}
 
-	if err := s.maybeTriggerAnError("UpdateStack", stack.CurrentSpec); err != nil {
+	if err := s.maybeTriggerAnError("UpdateStack", existing.CurrentSpec); err != nil {
 		return err
 	}
 
@@ -194,35 +172,13 @@ func (s *FakeStackStore) UpdateStack(idOrName string, stackSpec types.StackSpec,
 		return err
 	}
 
-	stack.Version.Index++
-	stackID := stack.ID
+	existing.Version.Index++
 
-	for _, service := range copied.Services {
-		if service.Annotations.Labels == nil {
-			service.Annotations.Labels = map[string]string{}
-		}
-		service.Annotations.Labels[types.StackLabel] = stackID
-	}
-	for _, config := range copied.Configs {
-		if config.Annotations.Labels == nil {
-			config.Annotations.Labels = map[string]string{}
-		}
-		config.Annotations.Labels[types.StackLabel] = stackID
-	}
-	for _, secret := range copied.Secrets {
-		if secret.Annotations.Labels == nil {
-			secret.Annotations.Labels = map[string]string{}
-		}
-		secret.Annotations.Labels[types.StackLabel] = stackID
-	}
-	for _, network := range copied.Networks {
-		if network.Labels == nil {
-			network.Labels = map[string]string{}
-		}
-		network.Labels[types.StackLabel] = stackID
-	}
-	stack.CurrentSpec = *copied
-	s.stacks[id] = stack
+	// Ensuring there are no shared data with the caller
+	copied := CopyStackSpec(stackSpec)
+	existing.CurrentSpec = *copied
+
+	s.stacks[id] = existing
 	return nil
 }
 
@@ -233,32 +189,34 @@ func (s *FakeStackStore) UpdateSnapshotStack(idOrName string, snapshot interface
 
 	id := s.resolveID(idOrName)
 
-	stack := s.InternalGetStack(id)
-	if stack == nil {
+	copied := CopySnapshotStack(snapshot)
+
+	existing := s.InternalGetStack(id)
+	if existing == nil {
 		return errdefs.NotFound(fmt.Errorf("stack %s not found", id))
 	}
 
-	if stack.Version.Index != version {
+	if existing.Version.Index != version {
 		return fmt.Errorf("update out of sequence")
 	}
 
-	if err := s.maybeTriggerAnError("UpdateSnapshotStack", stack.CurrentSpec); err != nil {
+	if err := s.maybeTriggerAnError("UpdateSnapshotStack", existing.CurrentSpec); err != nil {
 		return err
 	}
 
-	if err := s.maybeTriggerAnError("UpdateSnapshotStack", snapshot.CurrentSpec); err != nil {
+	if err := s.maybeTriggerAnError("UpdateSnapshotStack", copied.CurrentSpec); err != nil {
 		return err
 	}
 
-	stack.Version.Index++
+	existing.Version.Index++
 
 	// No accidental or sly changes to the StackSpec are permitted
-	stack.Services = snapshot.Services
-	stack.Configs = snapshot.Configs
-	stack.Secrets = snapshot.Secrets
-	stack.Networks = snapshot.Networks
+	existing.Services = copied.Services
+	existing.Configs = copied.Configs
+	existing.Secrets = copied.Secrets
+	existing.Networks = copied.Networks
 
-	s.stacks[id] = stack
+	s.stacks[id] = existing
 	return nil
 }
 

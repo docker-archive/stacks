@@ -39,8 +39,8 @@ func InitExtension(ctx context.Context, rc ResourcesClient) error {
 	// is the error.
 	_, err := rc.CreateExtension(ctx, req)
 	// we're looking to see if the error we got back is codes.AlreadyExists.
-	// That would mean the extension is already created, and we have nothing to
-	// do.
+	// That would mean the extension is already created, and we have
+	// nothing to do.
 
 	// if this isn't a grpc status error, then return the error. if err is nil,
 	// then "ok" will be true, but the resulting status will be one where the
@@ -86,6 +86,7 @@ func AddStack(ctx context.Context, rc ResourcesClient, stackSpec types.StackSpec
 	if err != nil {
 		return "", err
 	}
+
 	return resp.Resource.ID, nil
 }
 

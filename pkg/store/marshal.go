@@ -26,8 +26,8 @@ func MarshalSnapshotStackSpec(existingSnapshot *interfaces.SnapshotStack, stackS
 	return typeurl.MarshalAny(existingSnapshot)
 }
 
-// MarshalSnapshotStackSnapshot takes an existing interfaces.SnapshotStack and a
-// interfaces.SnapshotStack object and replaces the existing snapshot data
+// MarshalSnapshotStackSnapshot takes an existing interfaces.SnapshotStack and
+// an interfaces.SnapshotStack object and replaces the existing snapshot data
 // with that contained in the second interfaces.SnapshotStack
 // and marshals it into a protocol buffer Any message.  The types.StackSpec is
 // left unchanged
@@ -42,8 +42,8 @@ func MarshalSnapshotStackSnapshot(existingSnapshot *interfaces.SnapshotStack, sn
 	return typeurl.MarshalAny(existingSnapshot)
 }
 
-// MarshalStackSpec takes a types.StackSpec, wraps it in a SnapshotStack object and
-// marshals it into a protocol buffer Any message.
+// MarshalStackSpec takes a types.StackSpec, wraps it in a SnapshotStack
+// object and marshals it into a protocol buffer Any message.
 // Under the hood, this relies on marshaling the objects to JSON.
 func MarshalStackSpec(stackSpec *types.StackSpec) (*gogotypes.Any, error) {
 	snapshotStack := interfaces.SnapshotStack{
@@ -53,8 +53,8 @@ func MarshalStackSpec(stackSpec *types.StackSpec) (*gogotypes.Any, error) {
 
 }
 
-// UnmarshalStackSpec does the MarshalStackSpec operation in reverse -- takes a proto
-// message, and returns the StackSpec contained in it.
+// UnmarshalStackSpec does the MarshalStackSpec operation in reverse --
+// takes a proto message, and returns the StackSpec contained in it.
 func UnmarshalStackSpec(payload *gogotypes.Any) (*types.StackSpec, error) {
 	snapshotStack, err := UnmarshalSnapshotStack(payload)
 	if err != nil {
@@ -64,8 +64,8 @@ func UnmarshalStackSpec(payload *gogotypes.Any) (*types.StackSpec, error) {
 	return &snapshotStack.CurrentSpec, nil
 }
 
-// UnmarshalSnapshotStack does the MarshalStackSpec operation in reverse -- takes a proto
-// message, and returns the SnapshotStack contained in it.
+// UnmarshalSnapshotStack does the MarshalStackSpec operation in reverse --
+// takes a proto message, and returns the SnapshotStack contained in it.
 func UnmarshalSnapshotStack(payload *gogotypes.Any) (*interfaces.SnapshotStack, error) {
 	iface, err := typeurl.UnmarshalAny(payload)
 	if err != nil {
