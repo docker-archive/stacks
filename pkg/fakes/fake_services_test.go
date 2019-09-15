@@ -60,7 +60,7 @@ func TestUpdateFakeServiceStore(t *testing.T) {
 	_, err = store.CreateService(service1.Spec,
 		interfaces.DefaultCreateServiceArg2,
 		interfaces.DefaultCreateServiceArg3)
-	require.True(errdefs.IsInvalidParameter(err))
+	require.True(errdefs.IsAlreadyExists(err))
 	require.Error(err)
 
 }
@@ -71,7 +71,7 @@ func TestIsolationFakeServiceStore(t *testing.T) {
 	require := require.New(t)
 	store := NewFakeServiceStore()
 
-	fixtures := GenerateServiceFixtures(1, "TestIsolationFakeServiceStore")
+	fixtures := GenerateServiceFixtures(1, "", "TestIsolationFakeServiceStore")
 	spec := &fixtures[0].Spec
 
 	resp, err := store.CreateService(*spec, interfaces.DefaultCreateServiceArg2, interfaces.DefaultCreateServiceArg3)
@@ -110,7 +110,7 @@ func TestSpecifiedErrorsFakeServiceStore(t *testing.T) {
 	store.SpecifyKeyPrefix("SpecifiedError")
 	store.SpecifyErrorTrigger("SpecifiedError", FakeUnimplemented)
 
-	fixtures := GenerateServiceFixtures(10, "TestSpecifiedErrorsFakeServiceStore")
+	fixtures := GenerateServiceFixtures(10, "", "TestSpecifiedErrorsFakeServiceStore")
 
 	var err error
 	var resp *dockerTypes.ServiceCreateResponse
@@ -121,7 +121,7 @@ func TestSpecifiedErrorsFakeServiceStore(t *testing.T) {
 	store.MarkServiceSpecForError("SpecifiedError", &fixtures[1].Spec, "CreateService")
 
 	_, err = store.CreateService(fixtures[1].Spec, interfaces.DefaultCreateServiceArg2, interfaces.DefaultCreateServiceArg3)
-	require.True(errdefs.IsUnavailable(err))
+	require.True(errdefs.IsNotImplemented(err))
 	require.Error(err)
 
 	// 2. forced get failure after good create
@@ -242,7 +242,7 @@ func TestCRDFakeServiceStore(t *testing.T) {
 	require.Empty(service)
 
 	// Add three items
-	fixtures := GenerateServiceFixtures(4, "TestCRDFakeServiceStore")
+	fixtures := GenerateServiceFixtures(4, "", "TestCRDFakeServiceStore")
 	for i := 0; i < 3; i++ {
 		resp, err := store.CreateService(fixtures[i].Spec,
 			interfaces.DefaultCreateServiceArg2,

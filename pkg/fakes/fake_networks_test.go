@@ -39,7 +39,7 @@ func TestSimpleFakeNetworkStore(t *testing.T) {
 
 	// double creation
 	_, err = store.CreateNetwork(network1)
-	require.True(errdefs.IsInvalidParameter(err))
+	require.True(errdefs.IsAlreadyExists(err))
 	require.Error(err)
 }
 
@@ -89,7 +89,7 @@ func TestSpecifiedErrorsFakeNetworkStore(t *testing.T) {
 	store.MarkNetworkCreateForError("SpecifiedError", &fixtures[1].NetworkCreate, "CreateNetwork")
 
 	_, err = store.CreateNetwork(fixtures[1])
-	require.True(errdefs.IsUnavailable(err))
+	require.True(errdefs.IsNotImplemented(err))
 	require.Error(err)
 
 	// 2. forced get failure after good create

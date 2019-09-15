@@ -233,7 +233,7 @@ func (f *FakeNetworkStore) CreateNetwork(request dockerTypes.NetworkCreateReques
 	// maybeTriggerAnError happens below
 
 	if _, ok := f.networksByName[request.Name]; ok {
-		return "", FakeInvalidArg
+		return "", errdefs.AlreadyExists(fmt.Errorf("network %s already used", request.Name))
 	}
 
 	network := f.TransformNetworkCreateRequest(request)

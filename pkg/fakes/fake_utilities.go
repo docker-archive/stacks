@@ -10,6 +10,38 @@ import (
 	"github.com/docker/stacks/pkg/types"
 )
 
+// InjectStackID adds types.StackLabel to all specs
+func InjectStackID(spec *types.StackSpec, stackID string) {
+
+	for i := range spec.Services {
+		if spec.Services[i].Annotations.Labels == nil {
+			spec.Services[i].Annotations.Labels = map[string]string{}
+		}
+		spec.Services[i].Annotations.Labels[types.StackLabel] = stackID
+	}
+	for i := range spec.Configs {
+		if spec.Configs[i].Annotations.Labels == nil {
+			spec.Configs[i].Annotations.Labels = map[string]string{}
+		}
+		spec.Configs[i].Annotations.Labels[types.StackLabel] = stackID
+	}
+	for i := range spec.Secrets {
+		if spec.Secrets[i].Annotations.Labels == nil {
+			spec.Secrets[i].Annotations.Labels = map[string]string{}
+		}
+		spec.Secrets[i].Annotations.Labels[types.StackLabel] = stackID
+	}
+	networks := map[string]dockerTypes.NetworkCreate{}
+	for k, v := range spec.Networks {
+		if v.Labels == nil {
+			v.Labels = map[string]string{}
+		}
+		v.Labels[types.StackLabel] = stackID
+		networks[k] = v
+	}
+	spec.Networks = networks
+}
+
 // GenerateStackFixtures creates some types.Stack fixtures
 // as well as marking the EVEN ones as belonging
 // to types.StackLabel
@@ -18,8 +50,7 @@ func GenerateStackFixtures(n int, label string) []types.Stack {
 	var i int
 	for i < n {
 		specName := fmt.Sprintf("%dstack", i)
-		imageName := fmt.Sprintf("%dimage", i)
-		spec := GetTestStackSpec(specName, imageName)
+		spec := GetTestStackSpec(specName)
 		fixtures[i] = types.Stack{
 			Spec: spec,
 		}
@@ -33,35 +64,53 @@ func GenerateStackFixtures(n int, label string) []types.Stack {
 	return fixtures
 }
 
-// GetTestStackSpec creates a minimal types.StackSpec
-func GetTestStackSpec(name, image string) types.StackSpec {
+// GetTestStackSpec creates a full types.StackSpec
+func GetTestStackSpec(name string) types.StackSpec {
+	return GetTestStackSpecWithMultipleSpecs(1, name)
+}
 
-	ncr := GetTestNetworkRequest(name, image)
+// GetTestStackSpecWithMultipleSpecs creates a full types.StackSpec with multiple specs
+func GetTestStackSpecWithMultipleSpecs(n int, name string) types.StackSpec {
+
+	serviceFixtures := GenerateServiceFixtures(n, name+"service", name+"service")
+	configFixtures := GenerateConfigFixtures(n, name+"config")
+	secretFixtures := GenerateSecretFixtures(n, name+"secret")
+	networkFixtures := GenerateNetworkFixtures(n, name)
+
+	services := []swarm.ServiceSpec{}
+	configs := []swarm.ConfigSpec{}
+	secrets := []swarm.SecretSpec{}
+	networks := map[string]dockerTypes.NetworkCreate{}
+
+	for _, service := range serviceFixtures {
+		services = append(services, service.Spec)
+	}
+	for _, config := range configFixtures {
+		configs = append(configs, config.Spec)
+	}
+	for _, secret := range secretFixtures {
+		secrets = append(secrets, secret.Spec)
+	}
+	for _, ncr := range networkFixtures {
+		networks[ncr.Name+"network"] = ncr.NetworkCreate
+	}
 
 	spec := types.StackSpec{
 		Annotations: swarm.Annotations{
 			Name: name,
 		},
-		Services: []swarm.ServiceSpec{
-			GetTestServiceSpec(name+"service", image),
-		},
-		Configs: []swarm.ConfigSpec{
-			GetTestConfigSpec(name + "config"),
-		},
-		Secrets: []swarm.SecretSpec{
-			GetTestSecretSpec(name + "secret"),
-		},
-		Networks: map[string]dockerTypes.NetworkCreate{
-			ncr.Name + "network": ncr.NetworkCreate,
-		},
+		Services: services,
+		Configs:  configs,
+		Secrets:  secrets,
+		Networks: networks,
 	}
 
 	return spec
 }
 
 // GetTestStack creates a minimal type.Stack
-func GetTestStack(name, image string) types.Stack {
-	stackSpec := GetTestStackSpec(name, image)
+func GetTestStack(name string) types.Stack {
+	stackSpec := GetTestStackSpec(name)
 	return types.Stack{
 		Spec: stackSpec,
 	}
@@ -70,12 +119,12 @@ func GetTestStack(name, image string) types.Stack {
 // GenerateServiceFixtures creates some swarm.Service fixtures
 // as well as marking the EVEN ones as belonging
 // to types.StackLabel
-func GenerateServiceFixtures(n int, label string) []swarm.Service {
+func GenerateServiceFixtures(n int, name, label string) []swarm.Service {
 	fixtures := make([]swarm.Service, n)
 	var i int
 	for i < n {
-		specName := fmt.Sprintf("%dservice", i)
-		imageName := fmt.Sprintf("%dimage", i)
+		specName := fmt.Sprintf("%s%dservice", name, i)
+		imageName := fmt.Sprintf("%s%dimage", name, i)
 		spec := GetTestServiceSpec(specName, imageName)
 		fixtures[i] = swarm.Service{
 			Spec: spec,

@@ -15,7 +15,7 @@ var (
 	FakeNotFound      = errdefs.NotFound(errors.New("service not found"))
 	FakeInvalidArg    = errdefs.InvalidParameter(errors.New("not valid"))
 	FakeUnavailable   = errdefs.Unavailable(errors.New("not available"))
-	FakeUnimplemented = errdefs.Unavailable(errors.New("UNIMPLEMENTED"))
+	FakeUnimplemented = errdefs.NotImplemented(errors.New("UNIMPLEMENTED"))
 )
 
 // FakeGetStackIDFromLabelFilter takes a filters.Args and determines if it includes

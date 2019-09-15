@@ -1,6 +1,6 @@
 {
   "Vendor": true,
-  "Deadline": "5m",
+  "Deadline": "6m",
   "Sort": ["linter", "severity", "path", "line"],
   "Exclude": [
     "pkg/compose/schema/bindata.go",

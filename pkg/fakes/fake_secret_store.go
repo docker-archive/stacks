@@ -168,7 +168,7 @@ func (f *FakeSecretStore) CreateSecret(spec swarm.SecretSpec) (string, error) {
 	}
 
 	if _, ok := f.secretsByName[spec.Annotations.Name]; ok {
-		return "", FakeInvalidArg
+		return "", errdefs.AlreadyExists(fmt.Errorf("secret %s already used", spec.Annotations.Name))
 	}
 
 	copied := CopySecretSpec(spec)

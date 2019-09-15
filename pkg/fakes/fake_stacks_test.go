@@ -17,8 +17,8 @@ func TestUpdateFakeStackStore(t *testing.T) {
 	store.SpecifyKeyPrefix("TestUpdateFakeStackStore")
 	store.SpecifyErrorTrigger("TestUpdateFakeStackStore", FakeUnimplemented)
 
-	stack1 := GetTestStack("stack1", "image1")
-	stack2 := GetTestStack("stack2", "image2")
+	stack1 := GetTestStack("stack1")
+	stack2 := GetTestStack("stack2")
 
 	id1, err := store.AddStack(stack1.Spec)
 	require.NoError(err)
@@ -52,7 +52,7 @@ func TestUpdateFakeStackStore(t *testing.T) {
 
 	// double creation
 	_, err = store.AddStack(stack1.Spec)
-	require.True(errdefs.IsInvalidParameter(err))
+	require.True(errdefs.IsAlreadyExists(err))
 	require.Error(err)
 }
 
@@ -112,7 +112,7 @@ func TestSpecifiedErrorsFakeStackStore(t *testing.T) {
 	store.MarkStackSpecForError("SpecifiedError", &fixtures[1].Spec, "AddStack")
 
 	_, err = store.AddStack(fixtures[1].Spec)
-	require.True(errdefs.IsUnavailable(err))
+	require.True(errdefs.IsNotImplemented(err))
 	require.Error(err)
 
 	// 2. forced get failure after good create

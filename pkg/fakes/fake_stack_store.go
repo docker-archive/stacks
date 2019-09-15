@@ -118,7 +118,7 @@ func (s *FakeStackStore) AddStack(spec types.StackSpec) (string, error) {
 	}
 
 	if _, ok := s.stacksByName[spec.Annotations.Name]; ok {
-		return "", FakeInvalidArg
+		return "", errdefs.AlreadyExists(fmt.Errorf("stack %s already used", spec.Annotations.Name))
 	}
 
 	// Ensuring there are no shared data with the caller
