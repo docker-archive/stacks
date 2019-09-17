@@ -11,49 +11,8 @@ import (
 	"github.com/docker/docker/errdefs"
 
 	"github.com/docker/stacks/pkg/interfaces"
-	"github.com/docker/stacks/pkg/types"
 	"github.com/stretchr/testify/require"
 )
-
-// generateSecretFixtures creates some fixtures
-// as well as marking the EVEN ones as belonging
-// to types.StackLabel
-func generateSecretFixtures(n int, label string) []swarm.Secret {
-	fixtures := make([]swarm.Secret, n)
-	var i int
-	for i < n {
-		specName := fmt.Sprintf("%dsecret", i)
-		spec := getTestSecretSpec(specName)
-		fixtures[i] = swarm.Secret{
-			Spec: spec,
-		}
-		if i%2 == 0 {
-			fixtures[i].Spec.Annotations.Labels = make(map[string]string)
-			fixtures[i].Spec.Annotations.Labels[types.StackLabel] = label
-		}
-
-		i = i + 1
-	}
-	return fixtures
-}
-
-func getTestSecretSpec(name string) swarm.SecretSpec {
-
-	spec := swarm.SecretSpec{
-		Annotations: swarm.Annotations{
-			Name: name,
-		},
-	}
-
-	return spec
-}
-
-func getTestSecret(name string) swarm.Secret {
-	secretSpec := getTestSecretSpec(name)
-	return swarm.Secret{
-		Spec: secretSpec,
-	}
-}
 
 func TestUpdateFakeSecretStore(t *testing.T) {
 	require := require.New(t)
@@ -61,8 +20,8 @@ func TestUpdateFakeSecretStore(t *testing.T) {
 	store.SpecifyKeyPrefix("TestUpdateFakeSecretStore")
 	store.SpecifyErrorTrigger("TestUpdateFakeSecretStore", FakeUnimplemented)
 
-	secret1 := getTestSecret("secret1")
-	secret2 := getTestSecret("secret2")
+	secret1 := GetTestSecret("secret1")
+	secret2 := GetTestSecret("secret2")
 
 	id1, err := store.CreateSecret(secret1.Spec)
 	require.NoError(err)
@@ -96,7 +55,7 @@ func TestUpdateFakeSecretStore(t *testing.T) {
 
 	// double creation
 	_, err = store.CreateSecret(secret1.Spec)
-	require.True(errdefs.IsInvalidParameter(err))
+	require.True(errdefs.IsAlreadyExists(err))
 	require.Error(err)
 }
 
@@ -106,7 +65,7 @@ func TestIsolationFakeSecretStore(t *testing.T) {
 	require := require.New(t)
 	store := NewFakeSecretStore()
 
-	fixtures := generateSecretFixtures(1, "TestIsolationFakeSecretStore")
+	fixtures := GenerateSecretFixtures(1, "TestIsolationFakeSecretStore")
 	spec := &fixtures[0].Spec
 
 	id, err := store.CreateSecret(*spec)
@@ -145,7 +104,7 @@ func TestSpecifiedErrorsFakeSecretStore(t *testing.T) {
 	store.SpecifyKeyPrefix("SpecifiedError")
 	store.SpecifyErrorTrigger("SpecifiedError", FakeUnimplemented)
 
-	fixtures := generateSecretFixtures(10, "TestSpecifiedErrorsFakeSecretStore")
+	fixtures := GenerateSecretFixtures(10, "TestSpecifiedErrorsFakeSecretStore")
 
 	var id string
 	var err error
@@ -156,7 +115,7 @@ func TestSpecifiedErrorsFakeSecretStore(t *testing.T) {
 	store.MarkSecretSpecForError("SpecifiedError", &fixtures[1].Spec, "CreateSecret")
 
 	_, err = store.CreateSecret(fixtures[1].Spec)
-	require.True(errdefs.IsUnavailable(err))
+	require.True(errdefs.IsNotImplemented(err))
 	require.Error(err)
 
 	// 2. forced get failure after good create
@@ -277,7 +236,7 @@ func TestCRDFakeSecretStore(t *testing.T) {
 	require.Empty(secret)
 
 	// Add three items
-	fixtures := generateSecretFixtures(4, "TestCRDFakeSecretStore")
+	fixtures := GenerateSecretFixtures(4, "TestCRDFakeSecretStore")
 	for i := 0; i < 3; i++ {
 		id, err := store.CreateSecret(fixtures[i].Spec)
 		require.NoError(err, fmt.Sprintf("failed to add fixture %d", i))

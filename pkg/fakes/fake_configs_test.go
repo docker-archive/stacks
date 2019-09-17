@@ -11,49 +11,8 @@ import (
 	"github.com/docker/docker/errdefs"
 
 	"github.com/docker/stacks/pkg/interfaces"
-	"github.com/docker/stacks/pkg/types"
 	"github.com/stretchr/testify/require"
 )
-
-// generateConfigFixtures creates some fixtures
-// as well as marking the EVEN ones as belonging
-// to types.StackLabel
-func generateConfigFixtures(n int, label string) []swarm.Config {
-	fixtures := make([]swarm.Config, n)
-	var i int
-	for i < n {
-		specName := fmt.Sprintf("%dconfig", i)
-		spec := getTestConfigSpec(specName)
-		fixtures[i] = swarm.Config{
-			Spec: spec,
-		}
-		if i%2 == 0 {
-			fixtures[i].Spec.Annotations.Labels = make(map[string]string)
-			fixtures[i].Spec.Annotations.Labels[types.StackLabel] = label
-		}
-
-		i = i + 1
-	}
-	return fixtures
-}
-
-func getTestConfigSpec(name string) swarm.ConfigSpec {
-
-	spec := swarm.ConfigSpec{
-		Annotations: swarm.Annotations{
-			Name: name,
-		},
-	}
-
-	return spec
-}
-
-func getTestConfig(name string) swarm.Config {
-	configSpec := getTestConfigSpec(name)
-	return swarm.Config{
-		Spec: configSpec,
-	}
-}
 
 func TestUpdateFakeConfigStore(t *testing.T) {
 	require := require.New(t)
@@ -61,8 +20,8 @@ func TestUpdateFakeConfigStore(t *testing.T) {
 	store.SpecifyKeyPrefix("TestUpdateFakeConfigStore")
 	store.SpecifyErrorTrigger("TestUpdateFakeConfigStore", FakeUnimplemented)
 
-	config1 := getTestConfig("config1")
-	config2 := getTestConfig("config2")
+	config1 := GetTestConfig("config1")
+	config2 := GetTestConfig("config2")
 
 	id1, err := store.CreateConfig(config1.Spec)
 	require.NoError(err)
@@ -96,7 +55,7 @@ func TestUpdateFakeConfigStore(t *testing.T) {
 
 	// double creation
 	_, err = store.CreateConfig(config1.Spec)
-	require.True(errdefs.IsInvalidParameter(err))
+	require.True(errdefs.IsAlreadyExists(err))
 	require.Error(err)
 }
 
@@ -106,7 +65,7 @@ func TestIsolationFakeConfigStore(t *testing.T) {
 	require := require.New(t)
 	store := NewFakeConfigStore()
 
-	fixtures := generateConfigFixtures(1, "TestIsolationFakeConfigStore")
+	fixtures := GenerateConfigFixtures(1, "TestIsolationFakeConfigStore")
 	spec := &fixtures[0].Spec
 
 	id, err := store.CreateConfig(*spec)
@@ -145,7 +104,7 @@ func TestSpecifiedErrorsFakeConfigStore(t *testing.T) {
 	store.SpecifyKeyPrefix("SpecifiedError")
 	store.SpecifyErrorTrigger("SpecifiedError", FakeUnimplemented)
 
-	fixtures := generateConfigFixtures(10, "TestSpecifiedErrorsFakeConfigStore")
+	fixtures := GenerateConfigFixtures(10, "TestSpecifiedErrorsFakeConfigStore")
 
 	var id string
 	var err error
@@ -156,7 +115,7 @@ func TestSpecifiedErrorsFakeConfigStore(t *testing.T) {
 	store.MarkConfigSpecForError("SpecifiedError", &fixtures[1].Spec, "CreateConfig")
 
 	_, err = store.CreateConfig(fixtures[1].Spec)
-	require.True(errdefs.IsUnavailable(err))
+	require.True(errdefs.IsNotImplemented(err))
 	require.Error(err)
 
 	// 2. forced get failure after good create
@@ -277,7 +236,7 @@ func TestCRDFakeConfigStore(t *testing.T) {
 	require.Empty(config)
 
 	// Add three items
-	fixtures := generateConfigFixtures(4, "TestCRDFakeConfigStore")
+	fixtures := GenerateConfigFixtures(4, "TestCRDFakeConfigStore")
 	for i := 0; i < 3; i++ {
 		id, err := store.CreateConfig(fixtures[i].Spec)
 		require.NoError(err, fmt.Sprintf("failed to add fixture %d", i))

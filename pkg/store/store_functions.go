@@ -13,6 +13,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	"github.com/docker/stacks/pkg/interfaces"
 	"github.com/docker/stacks/pkg/types"
 )
 
@@ -38,8 +39,8 @@ func InitExtension(ctx context.Context, rc ResourcesClient) error {
 	// is the error.
 	_, err := rc.CreateExtension(ctx, req)
 	// we're looking to see if the error we got back is codes.AlreadyExists.
-	// That would mean the extension is already created, and we have nothing to
-	// do.
+	// That would mean the extension is already created, and we have
+	// nothing to do.
 
 	// if this isn't a grpc status error, then return the error. if err is nil,
 	// then "ok" will be true, but the resulting status will be one where the
@@ -60,7 +61,7 @@ func InitExtension(ctx context.Context, rc ResourcesClient) error {
 
 // AddStack adds a stack
 func AddStack(ctx context.Context, rc ResourcesClient, stackSpec types.StackSpec) (string, error) {
-	// first, marshal the stacks to a proto message
+	// first, marshal the stackSpec and runtimeStack to a proto message
 	any, err := MarshalStackSpec(&stackSpec)
 	if err != nil {
 		return "", err
@@ -85,6 +86,7 @@ func AddStack(ctx context.Context, rc ResourcesClient, stackSpec types.StackSpec
 	if err != nil {
 		return "", err
 	}
+
 	return resp.Resource.ID, nil
 }
 
@@ -106,12 +108,62 @@ func UpdateStack(ctx context.Context, rc ResourcesClient, id string, stackSpec t
 		return errors.New("Stack Version stale")
 	}
 
-	// marshal the updated types.StackSpec
-	any, err := MarshalStackSpec(&stackSpec)
+	snapshotStackResource, err := UnmarshalSnapshotStack(resource.Payload)
 	if err != nil {
 		return err
 	}
 
+	// marshal the updated types.StackSpec
+	any, err := MarshalSnapshotStackSpec(snapshotStackResource, &stackSpec)
+	if err != nil {
+		return err
+	}
+
+	// and then issue an update.
+	_, err = rc.UpdateResource(context.TODO(),
+		&swarmapi.UpdateResourceRequest{
+			ResourceID:      id,
+			ResourceVersion: &swarmapi.Version{Index: version},
+			Annotations: &swarmapi.Annotations{
+				Name:   stackSpec.Annotations.Name,
+				Labels: stackSpec.Annotations.Labels,
+			},
+			Payload: any,
+		},
+	)
+	return err
+}
+
+// UpdateSnapshotStack updates a stack's specs.
+func UpdateSnapshotStack(ctx context.Context, rc ResourcesClient, id string, snapshot interfaces.SnapshotStack, version uint64) error {
+	resp, err := rc.GetResource(ctx, &swarmapi.GetResourceRequest{
+		ResourceID: id,
+	})
+	if err != nil {
+		return err
+	}
+	resource := resp.Resource
+
+	if snapshot.Name != resource.Annotations.Name {
+		return errors.New("Stack Name changed")
+	}
+
+	if version != resource.Meta.Version.Index {
+		return errors.New("Stack Version stale")
+	}
+
+	existingSnapshot, err := UnmarshalSnapshotStack(resource.Payload)
+	if err != nil {
+		return err
+	}
+
+	// marshal the updated interfaces.SnapshotStack
+	any, err := MarshalSnapshotStackSnapshot(existingSnapshot, &snapshot)
+	if err != nil {
+		return err
+	}
+
+	stackSpec := existingSnapshot.CurrentSpec
 	// and then issue an update.
 	_, err = rc.UpdateResource(context.TODO(),
 		&swarmapi.UpdateResourceRequest{
@@ -146,7 +198,30 @@ func GetStack(ctx context.Context, rc ResourcesClient, id string) (types.Stack, 
 	}
 	resource := resp.Resource
 
-	return ConstructStack(resource)
+	stack, err := ConstructStack(resource)
+	if err != nil {
+		return types.Stack{}, err
+	}
+
+	return *stack, nil
+}
+
+// GetSnapshotStack returns a stack
+func GetSnapshotStack(ctx context.Context, rc ResourcesClient, id string) (interfaces.SnapshotStack, error) {
+	resp, err := rc.GetResource(
+		ctx, &swarmapi.GetResourceRequest{ResourceID: id},
+	)
+	if err != nil {
+		return interfaces.SnapshotStack{}, err
+	}
+	resource := resp.Resource
+
+	snapshot, err := ConstructSnapshotStack(resource)
+	if err != nil {
+		return interfaces.SnapshotStack{}, err
+	}
+
+	return *snapshot, nil
 }
 
 // ListStacks returns all stacks
@@ -170,7 +245,7 @@ func ListStacks(ctx context.Context, rc ResourcesClient) ([]types.Stack, error) 
 		if err != nil {
 			return nil, err
 		}
-		stacks = append(stacks, stack)
+		stacks = append(stacks, *stack)
 	}
 	return stacks, nil
 }

@@ -169,7 +169,7 @@ func (f *FakeConfigStore) CreateConfig(spec swarm.ConfigSpec) (string, error) {
 	}
 
 	if _, ok := f.configsByName[spec.Annotations.Name]; ok {
-		return "", FakeInvalidArg
+		return "", errdefs.AlreadyExists(fmt.Errorf("config %s already used", spec.Annotations.Name))
 	}
 	copied := CopyConfigSpec(spec)
 

@@ -165,7 +165,7 @@ func (f *FakeServiceStore) CreateService(spec swarm.ServiceSpec, _ string, _ boo
 	}
 
 	if _, ok := f.servicesByName[spec.Annotations.Name]; ok {
-		return nil, FakeInvalidArg
+		return nil, errdefs.AlreadyExists(fmt.Errorf("service %s already used", spec.Annotations.Name))
 	}
 
 	copied := CopyServiceSpec(spec)

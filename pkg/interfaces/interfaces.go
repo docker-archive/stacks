@@ -18,6 +18,7 @@ import (
 type StacksBackend interface {
 	CreateStack(spec types.StackSpec) (types.StackCreateResponse, error)
 	GetStack(id string) (types.Stack, error)
+	GetSnapshotStack(id string) (SnapshotStack, error)
 	ListStacks() ([]types.Stack, error)
 	UpdateStack(id string, spec types.StackSpec, version uint64) error
 	DeleteStack(id string) error
@@ -103,10 +104,12 @@ type BackendClient interface {
 type StackStore interface {
 	AddStack(types.StackSpec) (string, error)
 	UpdateStack(string, types.StackSpec, uint64) error
+	UpdateSnapshotStack(string, SnapshotStack, uint64) error
 
 	DeleteStack(string) error
 
 	GetStack(id string) (types.Stack, error)
+	GetSnapshotStack(id string) (SnapshotStack, error)
 
 	ListStacks() ([]types.Stack, error)
 }

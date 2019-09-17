@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 
+	"github.com/docker/stacks/pkg/interfaces"
 	"github.com/docker/stacks/pkg/types"
 )
 
@@ -31,6 +32,11 @@ func (s *StackStore) UpdateStack(id string, stackSpec types.StackSpec, version u
 	return UpdateStack(context.TODO(), s.client, id, stackSpec, version)
 }
 
+// UpdateSnapshotStack updates an existing SnapshotStack object
+func (s *StackStore) UpdateSnapshotStack(id string, snapshotStack interfaces.SnapshotStack, version uint64) error {
+	return UpdateSnapshotStack(context.TODO(), s.client, id, snapshotStack, version)
+}
+
 // DeleteStack removes the stacks with the given ID.
 func (s *StackStore) DeleteStack(id string) error {
 	return DeleteStack(context.TODO(), s.client, id)
@@ -39,6 +45,11 @@ func (s *StackStore) DeleteStack(id string) error {
 // GetStack retrieves and returns an exist types.Stack object by ID.
 func (s *StackStore) GetStack(id string) (types.Stack, error) {
 	return GetStack(context.TODO(), s.client, id)
+}
+
+// GetSnapshotStack retrieves and returns an exist types.Stack object by ID.
+func (s *StackStore) GetSnapshotStack(id string) (interfaces.SnapshotStack, error) {
+	return GetSnapshotStack(context.TODO(), s.client, id)
 }
 
 // ListStacks lists all available stack objects

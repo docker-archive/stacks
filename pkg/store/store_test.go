@@ -234,6 +234,35 @@ var _ = Describe("StackStore", func() {
 			Expect(resStack).To(Equal(expectedStackWithFields))
 		})
 
+		Specify("GetSnapshotStack", func() {
+			expectedStackWithFields := interfaces.SnapshotStack{
+				SnapshotResource: interfaces.SnapshotResource{
+					ID: stackResource.ID,
+					Meta: swarm.Meta{
+						Version: swarm.Version{
+							Index: stackResource.Meta.Version.Index,
+						},
+						CreatedAt: timeObj,
+						UpdatedAt: timeObj,
+					},
+				},
+				CurrentSpec: *stackSpec,
+			}
+			mockClient.EXPECT().GetResource(
+				context.TODO(),
+				&swarmapi.GetResourceRequest{
+					ResourceID: stackResource.ID,
+				},
+			).Return(
+				&swarmapi.GetResourceResponse{
+					Resource: stackResource,
+				}, nil,
+			)
+			resSnapshotStack, err := s.GetSnapshotStack(stackResource.ID)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(resSnapshotStack).To(Equal(expectedStackWithFields))
+		})
+
 		Describe("Listing", func() {
 			var (
 				numListedResources = 10
@@ -289,7 +318,7 @@ var _ = Describe("StackStore", func() {
 					// list of stacks with all the fields filled in
 					unst, err := ConstructStack(res)
 					Expect(err).ToNot(HaveOccurred())
-					allStacks = append(allStacks, unst)
+					allStacks = append(allStacks, *unst)
 				}
 
 				mockClient.EXPECT().ListResources(
