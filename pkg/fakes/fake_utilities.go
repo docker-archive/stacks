@@ -42,6 +42,86 @@ func InjectStackID(spec *types.StackSpec, stackID string) {
 	spec.Networks = networks
 }
 
+// InjectForcedRemoveError adds types.StackLabel to all specs
+func InjectForcedRemoveError(cli *FakeReconcilerClient, spec *types.StackSpec, removeError string) {
+
+	for i := range spec.Services {
+		cli.FakeServiceStore.MarkServiceSpecForError(removeError, &spec.Services[i], "RemoveService")
+	}
+	for i := range spec.Configs {
+		cli.FakeConfigStore.MarkConfigSpecForError(removeError, &spec.Configs[i], "RemoveConfig")
+	}
+	for i := range spec.Secrets {
+		cli.FakeSecretStore.MarkSecretSpecForError(removeError, &spec.Secrets[i], "RemoveSecret")
+	}
+	networks := map[string]dockerTypes.NetworkCreate{}
+	for k, v := range spec.Networks {
+		cli.FakeNetworkStore.MarkNetworkCreateForError(removeError, &v, "RemoveNetwork")
+		networks[k] = v
+	}
+	spec.Networks = networks
+}
+
+// InjectForcedUpdateError adds types.StackLabel to all specs
+func InjectForcedUpdateError(cli *FakeReconcilerClient, spec *types.StackSpec, removeError string) {
+
+	for i := range spec.Services {
+		cli.FakeServiceStore.MarkServiceSpecForError(removeError, &spec.Services[i], "UpdateService")
+	}
+	for i := range spec.Configs {
+		cli.FakeConfigStore.MarkConfigSpecForError(removeError, &spec.Configs[i], "UpdateConfig")
+	}
+	for i := range spec.Secrets {
+		cli.FakeSecretStore.MarkSecretSpecForError(removeError, &spec.Secrets[i], "UpdateSecret")
+	}
+	networks := map[string]dockerTypes.NetworkCreate{}
+	for k, v := range spec.Networks {
+		cli.FakeNetworkStore.MarkNetworkCreateForError(removeError, &v, "UpdateNetwork")
+		networks[k] = v
+	}
+	spec.Networks = networks
+}
+
+// InjectForcedGetError marks all specs with Get* errors
+func InjectForcedGetError(cli *FakeReconcilerClient, spec *types.StackSpec, removeError string) {
+
+	for i := range spec.Services {
+		cli.FakeServiceStore.MarkServiceSpecForError(removeError, &spec.Services[i], "GetService")
+	}
+	for i := range spec.Configs {
+		cli.FakeConfigStore.MarkConfigSpecForError(removeError, &spec.Configs[i], "GetConfig")
+	}
+	for i := range spec.Secrets {
+		cli.FakeSecretStore.MarkSecretSpecForError(removeError, &spec.Secrets[i], "GetSecret")
+	}
+	networks := map[string]dockerTypes.NetworkCreate{}
+	for k, v := range spec.Networks {
+		cli.FakeNetworkStore.MarkNetworkCreateForError(removeError, &v, "GetNetwork")
+		networks[k] = v
+	}
+	spec.Networks = networks
+}
+
+// InjectForcedGetResourcesError marks all specs with Get errors
+func InjectForcedGetResourcesError(cli *FakeReconcilerClient, spec *types.StackSpec, removeError string) {
+
+	for i := range spec.Services {
+		cli.FakeServiceStore.MarkServiceSpecForError(removeError, &spec.Services[i], "GetServices")
+	}
+	for i := range spec.Configs {
+		cli.FakeConfigStore.MarkConfigSpecForError(removeError, &spec.Configs[i], "GetConfigs")
+	}
+	for i := range spec.Secrets {
+		cli.FakeSecretStore.MarkSecretSpecForError(removeError, &spec.Secrets[i], "GetSecrets")
+	}
+	networks := map[string]dockerTypes.NetworkCreate{}
+	for k, v := range spec.Networks {
+		cli.FakeNetworkStore.MarkNetworkCreateForError(removeError, &v, "GetNetworks")
+		networks[k] = v
+	}
+	spec.Networks = networks
+}
+
 // GenerateStackFixtures creates some types.Stack fixtures
 // as well as marking the EVEN ones as belonging
 // to types.StackLabel
@@ -73,9 +153,9 @@ func GetTestStackSpec(name string) types.StackSpec {
 func GetTestStackSpecWithMultipleSpecs(n int, name string) types.StackSpec {
 
 	serviceFixtures := GenerateServiceFixtures(n, name+"service", name+"service")
-	configFixtures := GenerateConfigFixtures(n, name+"config")
-	secretFixtures := GenerateSecretFixtures(n, name+"secret")
-	networkFixtures := GenerateNetworkFixtures(n, name)
+	configFixtures := GenerateConfigFixtures(n, name+"config", name+"config")
+	secretFixtures := GenerateSecretFixtures(n, name+"secret", name+"secret")
+	networkFixtures := GenerateNetworkFixtures(n, name+"network", name+"network")
 
 	services := []swarm.ServiceSpec{}
 	configs := []swarm.ConfigSpec{}
@@ -167,11 +247,11 @@ func GetTestService(name, image string) swarm.Service {
 // GenerateConfigFixtures creates some swarm.Config fixtures
 // as well as marking the EVEN ones as belonging
 // to types.StackLabel
-func GenerateConfigFixtures(n int, label string) []swarm.Config {
+func GenerateConfigFixtures(n int, name, label string) []swarm.Config {
 	fixtures := make([]swarm.Config, n)
 	var i int
 	for i < n {
-		specName := fmt.Sprintf("%dconfig", i)
+		specName := fmt.Sprintf("%s%dconfig", name, i)
 		spec := GetTestConfigSpec(specName)
 		fixtures[i] = swarm.Config{
 			Spec: spec,
@@ -209,11 +289,11 @@ func GetTestConfig(name string) swarm.Config {
 // GenerateSecretFixtures creates some swarm.Secret fixtures
 // as well as marking the EVEN ones as belonging
 // to types.StackLabel
-func GenerateSecretFixtures(n int, label string) []swarm.Secret {
+func GenerateSecretFixtures(n int, name, label string) []swarm.Secret {
 	fixtures := make([]swarm.Secret, n)
 	var i int
 	for i < n {
-		specName := fmt.Sprintf("%dsecret", i)
+		specName := fmt.Sprintf("%s%dsecret", name, i)
 		spec := GetTestSecretSpec(specName)
 		fixtures[i] = swarm.Secret{
 			Spec: spec,
@@ -251,11 +331,11 @@ func GetTestSecret(name string) swarm.Secret {
 // GenerateNetworkFixtures creates some dockerTypes.NetworkCreateRequest
 // fixtures as well as marking the EVEN ones as belonging
 // to types.StackLabel
-func GenerateNetworkFixtures(n int, label string) []dockerTypes.NetworkCreateRequest {
+func GenerateNetworkFixtures(n int, name, label string) []dockerTypes.NetworkCreateRequest {
 	fixtures := make([]dockerTypes.NetworkCreateRequest, n)
 	var i int
 	for i < n {
-		specName := fmt.Sprintf("%dnetwork", i)
+		specName := fmt.Sprintf("%s%dnetwork", name, i)
 		driverName := fmt.Sprintf("%ddriver", i)
 		nr := GetTestNetworkRequest(specName, driverName)
 		fixtures[i] = nr

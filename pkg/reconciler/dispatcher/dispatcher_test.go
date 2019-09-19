@@ -11,8 +11,8 @@ import (
 
 	"github.com/docker/docker/api/types/events"
 
+	"github.com/docker/stacks/pkg/interfaces"
 	"github.com/docker/stacks/pkg/reconciler/notifier"
-	"github.com/docker/stacks/pkg/types"
 )
 
 type fakeRegisterFunc func(notifier.ObjectChangeNotifier)
@@ -23,10 +23,11 @@ func (f fakeRegisterFunc) Register(n notifier.ObjectChangeNotifier) {
 	}
 }
 
-// MatchesIDs is a gomock matcher which asserts that the actual ID used in the
+// MatchesRequestIDs is a gomock matcher which asserts that the actual ID used in the
 // call is one of the specified IDs, and that each ID is used only once
-func MatchesIDs(ids ...string) gomock.Matcher {
-	i := &idMatcher{
+func MatchesRequestIDs(kind interfaces.ReconcileKind, ids ...string) gomock.Matcher {
+	i := &requestIDMatcher{
+		kind:        kind,
 		expectedIDs: map[string]bool{},
 	}
 
@@ -36,13 +37,23 @@ func MatchesIDs(ids ...string) gomock.Matcher {
 	return i
 }
 
-type idMatcher struct {
+type requestIDMatcher struct {
+	kind        interfaces.ReconcileKind
 	expectedIDs map[string]bool
 }
 
-func (i *idMatcher) Matches(x interface{}) bool {
-	id, ok := x.(string)
+func (i *requestIDMatcher) Matches(x interface{}) bool {
+	var request *interfaces.ReconcileResource
+	var ok bool
+
+	request, ok = x.(*interfaces.ReconcileResource)
+
 	if !ok {
+		return false
+	}
+
+	id := request.ID
+	if request.Kind != i.kind {
 		return false
 	}
 
@@ -53,8 +64,8 @@ func (i *idMatcher) Matches(x interface{}) bool {
 	return true
 }
 
-func (i *idMatcher) String() string {
-	return "is one of the specified IDs (only once)"
+func (i *requestIDMatcher) String() string {
+	return "is one of the specified reconcile request IDs (only once)"
 }
 
 var _ = Describe("Dispatcher", func() {
@@ -118,16 +129,16 @@ var _ = Describe("Dispatcher", func() {
 
 			for i := 0; i < numberOfDuplicates; i++ {
 				eventC <- events.Message{
-					Type:   types.StackEventType,
+					Type:   interfaces.ReconcileStack,
 					Action: "update",
 					Actor:  actor,
 				}
 			}
 
+			nr, _ := NewRequest(interfaces.ReconcileStack, "someID")
 			// we're expecting only 1 call to Reconcile
 			mockReconciler.EXPECT().Reconcile(
-				gomock.Eq(types.StackEventType),
-				gomock.Eq("someID"),
+				gomock.Eq(nr),
 			).Return(nil)
 
 			// TODO(dperny): this launches a goroutine, and goroutines in tests
@@ -151,7 +162,8 @@ var _ = Describe("Dispatcher", func() {
 			eventC := make(chan interface{}, 32)
 
 			type objTuple struct {
-				kind, id string
+				kind interfaces.ReconcileKind
+				id   string
 			}
 
 			// to make this test work, we're going to start with this slice,
@@ -161,34 +173,34 @@ var _ = Describe("Dispatcher", func() {
 			// (service config secret network stack)
 			orderIn := []objTuple{
 				{
-					kind: types.StackEventType,
+					kind: interfaces.ReconcileStack,
 					id:   "stack1",
 				}, {
-					kind: events.NetworkEventType,
+					kind: interfaces.ReconcileNetwork,
 					id:   "network1",
 				}, {
-					kind: events.SecretEventType,
+					kind: interfaces.ReconcileSecret,
 					id:   "secret1",
 				}, {
-					kind: events.ConfigEventType,
+					kind: interfaces.ReconcileConfig,
 					id:   "config1",
 				}, {
-					kind: events.ServiceEventType,
+					kind: interfaces.ReconcileService,
 					id:   "service1",
 				}, {
-					kind: events.ServiceEventType,
+					kind: interfaces.ReconcileService,
 					id:   "service2",
 				}, {
-					kind: events.ConfigEventType,
+					kind: interfaces.ReconcileConfig,
 					id:   "config2",
 				}, {
-					kind: events.SecretEventType,
+					kind: interfaces.ReconcileSecret,
 					id:   "secret2",
 				}, {
-					kind: events.NetworkEventType,
+					kind: interfaces.ReconcileNetwork,
 					id:   "network2",
 				}, {
-					kind: types.StackEventType,
+					kind: interfaces.ReconcileStack,
 					id:   "stack2",
 				},
 			}
@@ -209,7 +221,7 @@ var _ = Describe("Dispatcher", func() {
 			// reconcile have been exhausted, we will close the channel so that
 			// the dispatcher exits
 			callCount := 0
-			closeWhenProcessed := func(kind, id string) {
+			closeWhenProcessed := func(request *interfaces.ReconcileResource) {
 				callCount++
 				if callCount >= len(orderIn) {
 					close(eventC)
@@ -235,19 +247,19 @@ var _ = Describe("Dispatcher", func() {
 			// * passing an unexpected ID causes a failure
 			gomock.InOrder(
 				mockReconciler.EXPECT().Reconcile(
-					types.StackEventType, MatchesIDs("stack1", "stack2"),
+					MatchesRequestIDs(interfaces.ReconcileStack, "stack1", "stack2"),
 				).Do(closeWhenProcessed).Return(nil).Times(2),
 				mockReconciler.EXPECT().Reconcile(
-					events.NetworkEventType, MatchesIDs("network1", "network2"),
+					MatchesRequestIDs(interfaces.ReconcileNetwork, "network1", "network2"),
 				).Do(closeWhenProcessed).Return(nil).Times(2),
 				mockReconciler.EXPECT().Reconcile(
-					events.SecretEventType, MatchesIDs("secret1", "secret2"),
+					MatchesRequestIDs(interfaces.ReconcileSecret, "secret1", "secret2"),
 				).Do(closeWhenProcessed).Return(nil).Times(2),
 				mockReconciler.EXPECT().Reconcile(
-					events.ConfigEventType, MatchesIDs("config1", "config2"),
+					MatchesRequestIDs(interfaces.ReconcileConfig, "config1", "config2"),
 				).Do(closeWhenProcessed).Return(nil).Times(2),
 				mockReconciler.EXPECT().Reconcile(
-					events.ServiceEventType, MatchesIDs("service1", "service2"),
+					MatchesRequestIDs(interfaces.ReconcileService, "service1", "service2"),
 				).Do(closeWhenProcessed).Return(nil).Times(2),
 			)
 

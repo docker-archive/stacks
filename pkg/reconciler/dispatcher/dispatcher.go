@@ -1,18 +1,17 @@
 package dispatcher
 
 import (
+	"fmt"
 	"sync"
 
-	"github.com/docker/docker/api/types/events"
 	"github.com/sirupsen/logrus"
 
+	"github.com/docker/docker/api/types/events"
+	"github.com/docker/docker/errdefs"
+
+	"github.com/docker/stacks/pkg/interfaces"
 	"github.com/docker/stacks/pkg/reconciler/notifier"
 	"github.com/docker/stacks/pkg/reconciler/reconciler"
-	"github.com/docker/stacks/pkg/types"
-)
-
-const (
-	noMoreObjects = "none left"
 )
 
 // Dispatcher is the object that decides when to call the reconciler and with
@@ -31,20 +30,21 @@ type dispatcher struct {
 
 	r reconciler.Reconciler
 
-	// currently, the reconciler package only works with Stacks. The dispatcher
-	// will be updated to handle more object types as the Reconciler implements
-	// functionality for them.
+	// currently, the reconciler package only works with Stacks. The
+	// dispatcher will be updated to handle more object types as the
+	// Reconciler implements functionality for them.
 
-	// pendingStacks (and the similar pending maps) are sets of object IDs. at
-	// first glance, we might want to put all objects into a map[string]string,
-	// where the key is the ID and the value is the kind. however, we have to
-	// reconcile objects in order: stacks, then networks, configs, and secrets,
+	// pendingStacks (and the similar pending maps) are sets of object IDs.
+	// at first glance, we might want to put all objects into a
+	// map[string]*interfaces.ReconcileResource, where the key is the ID
+	// and the value is the kind. however, we have to reconcile objects in
+	// order: stacks, then networks, configs, and secrets,
 	// and finally services.
-	pendingStacks   map[string]struct{}
-	pendingNetworks map[string]struct{}
-	pendingSecrets  map[string]struct{}
-	pendingConfigs  map[string]struct{}
-	pendingServices map[string]struct{}
+	pendingStacks   map[string]*interfaces.ReconcileResource
+	pendingNetworks map[string]*interfaces.ReconcileResource
+	pendingSecrets  map[string]*interfaces.ReconcileResource
+	pendingConfigs  map[string]*interfaces.ReconcileResource
+	pendingServices map[string]*interfaces.ReconcileResource
 }
 
 // New creates and returns the default Dispatcher object, which will
@@ -58,33 +58,49 @@ func New(r reconciler.Reconciler, register notifier.Register) Dispatcher {
 func newDispatcher(r reconciler.Reconciler, register notifier.Register) *dispatcher {
 	m := &dispatcher{
 		r:               r,
-		pendingStacks:   map[string]struct{}{},
-		pendingNetworks: map[string]struct{}{},
-		pendingSecrets:  map[string]struct{}{},
-		pendingConfigs:  map[string]struct{}{},
-		pendingServices: map[string]struct{}{},
+		pendingStacks:   map[string]*interfaces.ReconcileResource{},
+		pendingNetworks: map[string]*interfaces.ReconcileResource{},
+		pendingSecrets:  map[string]*interfaces.ReconcileResource{},
+		pendingConfigs:  map[string]*interfaces.ReconcileResource{},
+		pendingServices: map[string]*interfaces.ReconcileResource{},
 	}
 	register.Register(m)
 	return m
 }
 
+// NewRequest creates a new request to reconcile a resource
+func NewRequest(kind, ID string) (*interfaces.ReconcileResource, error) {
+	reconcileKind := kind
+	if _, ok := interfaces.ReconcileKinds[reconcileKind]; !ok {
+		return nil, errdefs.NotFound(fmt.Errorf("Resource kind %s not found", kind))
+	}
+
+	result := interfaces.ReconcileResource{
+		SnapshotResource: interfaces.SnapshotResource{
+			ID: ID,
+		},
+		Kind: reconcileKind,
+	}
+	return &result, nil
+}
+
 // Notify tells the dispatcher to call the reconciler with this object at some
 // point in the future
-func (d *dispatcher) Notify(kind, id string) {
+func (d *dispatcher) Notify(request *interfaces.ReconcileResource) {
+	id := request.ID
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	// TODO(dperny) implement
-	switch kind {
-	case types.StackEventType:
-		d.pendingStacks[id] = struct{}{}
-	case events.NetworkEventType:
-		d.pendingNetworks[id] = struct{}{}
-	case events.SecretEventType:
-		d.pendingSecrets[id] = struct{}{}
-	case events.ConfigEventType:
-		d.pendingConfigs[id] = struct{}{}
-	case events.ServiceEventType:
-		d.pendingServices[id] = struct{}{}
+	switch request.Kind {
+	case interfaces.ReconcileStack:
+		d.pendingStacks[id] = request
+	case interfaces.ReconcileNetwork:
+		d.pendingNetworks[id] = request
+	case interfaces.ReconcileSecret:
+		d.pendingSecrets[id] = request
+	case interfaces.ReconcileConfig:
+		d.pendingConfigs[id] = request
+	case interfaces.ReconcileService:
+		d.pendingServices[id] = request
 	}
 }
 
@@ -131,8 +147,10 @@ func (d *dispatcher) HandleEvents(eventC chan interface{}) error {
 			// if the channel is closed, return
 			return nil
 		}
-		d.resolveMessage(ev)
-
+		err := d.resolveMessage(ev)
+		if err != nil {
+			logrus.Error(err)
+		}
 		// next state: reading events
 	readingEvents:
 		for {
@@ -143,22 +161,26 @@ func (d *dispatcher) HandleEvents(eventC chan interface{}) error {
 				if !ok {
 					return nil
 				}
-				d.resolveMessage(ev)
+				err = d.resolveMessage(ev)
+				if err != nil {
+					logrus.Error(err)
+				}
 			default:
 				// when the channel is no longer ready, process an event
-				kind, id := d.pickObject()
-				if kind == noMoreObjects {
+				request := d.pickObject()
+				if request == nil {
 					// if there are no more objects in the queue, go back to
 					// waiting for an event
 					break readingEvents
 				}
 				// next state: reconcile the object. if it fails, add it back
 				// to the set of objects.
-				if err := d.r.Reconcile(kind, id); err != nil {
+				err = d.r.Reconcile(request)
+				if err != nil {
 					// TODO(dperny): if a given object always fails, we'll stay
 					// in this state forever, looping again and again.
 					logrus.Error(err)
-					d.Notify(kind, id)
+					d.Notify(request)
 				}
 			}
 		}
@@ -167,12 +189,17 @@ func (d *dispatcher) HandleEvents(eventC chan interface{}) error {
 
 // resolveMessage is a method that figures out what kind of event this is and
 // puts it into the correct map
-func (d *dispatcher) resolveMessage(ev interface{}) {
+func (d *dispatcher) resolveMessage(ev interface{}) error {
 	// naked type cast. If this isn't events.Message, then the program will
 	// panic. This is the desired behavior.
 	msg := ev.(events.Message)
 	// and then just call Notify, it's the same code anyway.
-	d.Notify(msg.Type, msg.Actor.ID)
+	request, err := NewRequest(msg.Type, msg.Actor.ID)
+	if err != nil {
+		return err
+	}
+	d.Notify(request)
+	return nil
 }
 
 // pickObject selects and returns the next object to be processed. It returns
@@ -185,30 +212,30 @@ func (d *dispatcher) resolveMessage(ev interface{}) {
 // because they depend on the other object types. The middle 3 object types,
 // Network, Secret, and Config, could be done in any order, but it's simpler
 // to just assign them an order
-func (d *dispatcher) pickObject() (string, string) {
+func (d *dispatcher) pickObject() *interfaces.ReconcileResource {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	for stack := range d.pendingStacks {
+	for id, stack := range d.pendingStacks {
 		// it should be safe to delete from a map we're iterating over.
 		// especially considering we're not iterating any further.
-		delete(d.pendingStacks, stack)
-		return types.StackEventType, stack
+		delete(d.pendingStacks, id)
+		return stack
 	}
-	for nw := range d.pendingNetworks {
-		delete(d.pendingNetworks, nw)
-		return events.NetworkEventType, nw
+	for id, nw := range d.pendingNetworks {
+		delete(d.pendingNetworks, id)
+		return nw
 	}
-	for secret := range d.pendingSecrets {
-		delete(d.pendingSecrets, secret)
-		return events.SecretEventType, secret
+	for id, secret := range d.pendingSecrets {
+		delete(d.pendingSecrets, id)
+		return secret
 	}
-	for config := range d.pendingConfigs {
-		delete(d.pendingConfigs, config)
-		return events.ConfigEventType, config
+	for id, config := range d.pendingConfigs {
+		delete(d.pendingConfigs, id)
+		return config
 	}
-	for service := range d.pendingServices {
-		delete(d.pendingServices, service)
-		return events.ServiceEventType, service
+	for id, service := range d.pendingServices {
+		delete(d.pendingServices, id)
+		return service
 	}
-	return noMoreObjects, ""
+	return nil
 }

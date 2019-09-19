@@ -1,5 +1,9 @@
 package notifier
 
+import (
+	"github.com/docker/stacks/pkg/interfaces"
+)
+
 // ObjectChangeNotifier is an interface defining an object that can be called
 // back to if the Reconciler decides that it needs to take another pass at some
 // object. The ObjectChangeNotifier may seem a bit excessive, but it provides
@@ -10,7 +14,7 @@ package notifier
 // much more difficult.
 type ObjectChangeNotifier interface {
 	// Notify indicates the kind and ID of an object that should be reconciled
-	Notify(kind, id string)
+	Notify(*interfaces.ReconcileResource)
 }
 
 // Register is an interface defining an object that an ObjectChangeNotifier can
@@ -71,9 +75,9 @@ func NewNotificationForwarder() NotificationForwarder {
 }
 
 // Notify notifies the registered receiver, if one exists.
-func (n *notificationForwarder) Notify(kind, id string) {
+func (n *notificationForwarder) Notify(resource *interfaces.ReconcileResource) {
 	if n.notifier != nil {
-		n.notifier.Notify(kind, id)
+		n.notifier.Notify(resource)
 	}
 }
 
