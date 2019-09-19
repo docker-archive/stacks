@@ -9,9 +9,9 @@ import (
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/errdefs"
 
-	"github.com/docker/stacks/pkg/reconciler/notifier"
 	"github.com/docker/stacks/pkg/fakes"
 	"github.com/docker/stacks/pkg/interfaces"
+	"github.com/docker/stacks/pkg/reconciler/notifier"
 	"github.com/docker/stacks/pkg/types"
 )
 
@@ -47,8 +47,8 @@ func ConsistOfIDs(ids ...string) GomegaMatcher {
 // addSpecifiedResources uses the plugin implementations in order to use the abstracted interfaces
 // so that a generalized test possible
 func addSpecifiedResources(init initializationSupport, stackSpec types.StackSpec, stackID string) []string {
-	snapshot := interfaces.SnapshotStack {
-		SnapshotResource: interfaces.SnapshotResource {
+	snapshot := interfaces.SnapshotStack{
+		SnapshotResource: interfaces.SnapshotResource{
 			ID: stackID,
 		},
 		CurrentSpec: stackSpec,
@@ -62,7 +62,7 @@ func addSpecifiedResources(init initializationSupport, stackSpec types.StackSpec
 	resource2 := plugin.addCreateResourceGoal(names[1])
 	err1 := plugin.createResource(resource1)
 	err2 := plugin.createResource(resource2)
-	
+
 	Expect(err1).ToNot(HaveOccurred())
 	Expect(err2).ToNot(HaveOccurred())
 
@@ -127,9 +127,9 @@ func mutateStackSpec(init initializationSupport, stackSpec *types.StackSpec) {
 		secret := stackSpec.Secrets[0]
 		stackSpec.Secrets = []swarm.SecretSpec{secret}
 	} else if init.getKind() == interfaces.ReconcileNetwork {
-		for k, _ := range stackSpec.Networks {
-		    delete(stackSpec.Networks, k)
-		    break
+		for k := range stackSpec.Networks {
+			delete(stackSpec.Networks, k)
+			break
 		}
 	}
 }
@@ -141,7 +141,6 @@ type Stuff struct {
 	cheatStackSpec, errorStackSpec types.StackSpec
 	plainStackSpecRemoveErr        types.StackSpec
 	plainStackSpecUpdateErr        types.StackSpec
-	plainStackSpecGetErr           types.StackSpec
 	plainStackSpecGetNetworksErr   types.StackSpec
 	plainStackSpecGetServicesErr   types.StackSpec
 	plainStackSpecGetSecretsErr    types.StackSpec
@@ -210,13 +209,13 @@ func makeStuff(stuff *Stuff) {
 }
 
 func algorithmTest(stuff *Stuff) {
-		It("Precondition", func() {
-	Expect(stuff).ToNot(BeNil())
+	It("Precondition", func() {
+		Expect(stuff).ToNot(BeNil())
 	})
 	var (
-		algorithmPlugin algorithmPlugin
-		err, err1 error
-		resourceIDs []string
+		algorithmPlugin   algorithmPlugin
+		err, err1         error
+		resourceIDs       []string
 		current, snapshot interfaces.SnapshotStack
 	)
 	Context("Creating the expected resources beforehand", func() {
@@ -316,7 +315,7 @@ func algorithmTest(stuff *Stuff) {
 				_, err = algorithmPlugin.reconcile(altered)
 			})
 			It("All should be same", func() {
-				if (algorithmPlugin.getKind() == interfaces.ReconcileNetwork) {
+				if algorithmPlugin.getKind() == interfaces.ReconcileNetwork {
 					Skip("NETWORKS DO NOT HAVE UPDATE AVAILABLE")
 				}
 				Expect(err == fakes.FakeUnimplemented).To(BeTrue())
@@ -344,7 +343,7 @@ func algorithmTest(stuff *Stuff) {
 				deeper, err = algorithmPlugin.reconcile(current)
 			})
 			It("All should be same", func() {
-			Expect(algorithmPlugin.getGoalResources()).To(ConsistOfStates(interfaces.ReconcileSame, interfaces.ReconcileSame))
+				Expect(algorithmPlugin.getGoalResources()).To(ConsistOfStates(interfaces.ReconcileSame, interfaces.ReconcileSame))
 				Expect(deeper).ToNot(BeNil())
 				Expect(stuff.pluginInit.getSnapshotResourceNames(deeper)).To(HaveLen(2))
 				Expect(deeper.ID).To(Equal(stuff.stackID))
@@ -440,7 +439,7 @@ func algorithmTest(stuff *Stuff) {
 				deeper, err = algorithmPlugin.reconcile(current)
 			})
 			It("All should be same", func() {
-				if (algorithmPlugin.getKind() == interfaces.ReconcileNetwork) {
+				if algorithmPlugin.getKind() == interfaces.ReconcileNetwork {
 					Skip("NETWORKS DO NOT HAVE UPDATE AVAILABLE")
 				}
 				Expect(err1).ToNot(HaveOccurred())
@@ -455,7 +454,7 @@ func algorithmTest(stuff *Stuff) {
 
 var _ = Describe("Algorithm Test - Services", func() {
 	var (
-		stuff  Stuff
+		stuff Stuff
 	)
 	BeforeEach(func() {
 		makeStuff(&stuff)
@@ -474,7 +473,7 @@ var _ = Describe("Algorithm Test - Services", func() {
 
 var _ = Describe("Algorithm Test - Configs", func() {
 	var (
-		stuff  Stuff
+		stuff Stuff
 	)
 	BeforeEach(func() {
 		makeStuff(&stuff)
@@ -491,7 +490,7 @@ var _ = Describe("Algorithm Test - Configs", func() {
 
 var _ = Describe("Algorithm Test - Secrets", func() {
 	var (
-		stuff  Stuff
+		stuff Stuff
 	)
 	BeforeEach(func() {
 		makeStuff(&stuff)
@@ -508,7 +507,7 @@ var _ = Describe("Algorithm Test - Secrets", func() {
 
 var _ = Describe("Algorithm Test - Networks", func() {
 	var (
-		stuff  Stuff
+		stuff Stuff
 	)
 	BeforeEach(func() {
 		makeStuff(&stuff)
@@ -525,7 +524,7 @@ var _ = Describe("Algorithm Test - Networks", func() {
 
 var _ = Describe("Algorithm Test - Whole Stack", func() {
 	var (
-		stuff  Stuff
+		stuff Stuff
 	)
 	BeforeEach(func() {
 		makeStuff(&stuff)
@@ -538,7 +537,7 @@ var _ = Describe("Algorithm Test - Whole Stack", func() {
 	})
 	Context("Reconciling the expected get resources failures into existenence", func() {
 		var (
-			err error
+			err        error
 			reconciler *reconciler
 		)
 		BeforeEach(func() {
@@ -551,9 +550,9 @@ var _ = Describe("Algorithm Test - Whole Stack", func() {
 					},
 					Kind: interfaces.ReconcileStack,
 				}
-				err = reconciler.Reconcile(stuff.request)				
+				err = reconciler.Reconcile(stuff.request)
 				Expect(err).ToNot(HaveOccurred())
-				err = reconciler.Reconcile(stuff.request)				
+				err = reconciler.Reconcile(stuff.request)
 			}
 		})
 		It("New resources created", func() {
@@ -563,8 +562,8 @@ var _ = Describe("Algorithm Test - Whole Stack", func() {
 	})
 	Context("Reconciling the expected resources into existenence", func() {
 		var (
-			snapshot interfaces.SnapshotStack
-			err error
+			snapshot   interfaces.SnapshotStack
+			err        error
 			reconciler *reconciler
 		)
 		BeforeEach(func() {
@@ -597,7 +596,7 @@ var _ = Describe("Algorithm Test - Whole Stack", func() {
 			BeforeEach(func() {
 				stuff.request = &interfaces.ReconcileResource{
 					SnapshotResource: interfaces.SnapshotResource{
-						ID: snapshot.Services[0].ID,
+						ID:   snapshot.Services[0].ID,
 						Name: snapshot.Services[0].Name,
 					},
 					Kind: interfaces.ReconcileService,
@@ -613,7 +612,7 @@ var _ = Describe("Algorithm Test - Whole Stack", func() {
 			BeforeEach(func() {
 				stuff.request = &interfaces.ReconcileResource{
 					SnapshotResource: interfaces.SnapshotResource{
-						ID: snapshot.Secrets[0].ID,
+						ID:   snapshot.Secrets[0].ID,
 						Name: snapshot.Secrets[0].Name,
 					},
 					Kind: interfaces.ReconcileSecret,
@@ -629,7 +628,7 @@ var _ = Describe("Algorithm Test - Whole Stack", func() {
 			BeforeEach(func() {
 				stuff.request = &interfaces.ReconcileResource{
 					SnapshotResource: interfaces.SnapshotResource{
-						ID: snapshot.Configs[0].ID,
+						ID:   snapshot.Configs[0].ID,
 						Name: snapshot.Configs[0].Name,
 					},
 					Kind: interfaces.ReconcileConfig,
@@ -645,7 +644,7 @@ var _ = Describe("Algorithm Test - Whole Stack", func() {
 			BeforeEach(func() {
 				stuff.request = &interfaces.ReconcileResource{
 					SnapshotResource: interfaces.SnapshotResource{
-						ID: snapshot.Networks[0].ID,
+						ID:   snapshot.Networks[0].ID,
 						Name: snapshot.Networks[0].Name,
 					},
 					Kind: interfaces.ReconcileNetwork,
@@ -662,9 +661,9 @@ var _ = Describe("Algorithm Test - Whole Stack", func() {
 				stack, _ := stuff.cli.GetStack(stuff.stackID)
 				stuff.cli.FakeStackStore.MarkStackSpecForError("SpecifiedError", &stack.Spec, "GetSnapshotStack")
 				err1 := stuff.cli.UpdateStack(
-						stuff.stackID,
-						stack.Spec,
-						stack.Meta.Version.Index)
+					stuff.stackID,
+					stack.Spec,
+					stack.Meta.Version.Index)
 				Expect(err1).ToNot(HaveOccurred())
 
 				stuff.request = &interfaces.ReconcileResource{
@@ -685,7 +684,7 @@ var _ = Describe("Algorithm Test - Whole Stack", func() {
 			BeforeEach(func() {
 				stuff.request = &interfaces.ReconcileResource{
 					SnapshotResource: interfaces.SnapshotResource{
-						ID: "MISSING",
+						ID:   "MISSING",
 						Name: snapshot.Services[0].Name,
 					},
 					Kind: interfaces.ReconcileService,
@@ -700,17 +699,17 @@ var _ = Describe("Algorithm Test - Whole Stack", func() {
 		Context("Reconciling unlabeled subresource - Config", func() {
 			BeforeEach(func() {
 				resource := snapshot.Configs[0]
-				cfg,_ := stuff.cli.GetConfig(resource.ID)
+				cfg, _ := stuff.cli.GetConfig(resource.ID)
 				delete(cfg.Spec.Annotations.Labels, types.StackLabel)
 				errUpdate := stuff.cli.UpdateConfig(
-						resource.ID,
-						cfg.Meta.Version.Index,
-						cfg.Spec)
+					resource.ID,
+					cfg.Meta.Version.Index,
+					cfg.Spec)
 				Expect(errUpdate).ToNot(HaveOccurred())
 
 				stuff.request = &interfaces.ReconcileResource{
 					SnapshotResource: interfaces.SnapshotResource{
-						ID: snapshot.Configs[0].ID,
+						ID:   snapshot.Configs[0].ID,
 						Name: snapshot.Configs[0].Name,
 					},
 					Kind: interfaces.ReconcileConfig,
@@ -725,17 +724,17 @@ var _ = Describe("Algorithm Test - Whole Stack", func() {
 		Context("Reconciling subresource with embedded error - Config", func() {
 			BeforeEach(func() {
 				resource := snapshot.Configs[0]
-				cfg,_ := stuff.cli.GetConfig(resource.ID)
+				cfg, _ := stuff.cli.GetConfig(resource.ID)
 				stuff.cli.FakeConfigStore.MarkConfigSpecForError("SpecifiedError", &cfg.Spec, "GetConfig")
 				errUpdate := stuff.cli.UpdateConfig(
-						resource.ID,
-						cfg.Meta.Version.Index,
-						cfg.Spec)
+					resource.ID,
+					cfg.Meta.Version.Index,
+					cfg.Spec)
 				Expect(errUpdate).ToNot(HaveOccurred())
 
 				stuff.request = &interfaces.ReconcileResource{
 					SnapshotResource: interfaces.SnapshotResource{
-						ID: snapshot.Configs[0].ID,
+						ID:   snapshot.Configs[0].ID,
 						Name: snapshot.Configs[0].Name,
 					},
 					Kind: interfaces.ReconcileConfig,
@@ -750,17 +749,17 @@ var _ = Describe("Algorithm Test - Whole Stack", func() {
 		Context("Reconciling mislabeled subresource - Secret", func() {
 			BeforeEach(func() {
 				resource := snapshot.Secrets[0]
-				sct,_ := stuff.cli.GetSecret(resource.ID)
+				sct, _ := stuff.cli.GetSecret(resource.ID)
 				sct.Spec.Annotations.Labels[types.StackLabel] = "MISSING"
 				errUpdate := stuff.cli.UpdateSecret(
-						resource.ID,
-						sct.Meta.Version.Index,
-						sct.Spec)
+					resource.ID,
+					sct.Meta.Version.Index,
+					sct.Spec)
 				Expect(errUpdate).ToNot(HaveOccurred())
 
 				stuff.request = &interfaces.ReconcileResource{
 					SnapshotResource: interfaces.SnapshotResource{
-						ID: snapshot.Secrets[0].ID,
+						ID:   snapshot.Secrets[0].ID,
 						Name: snapshot.Secrets[0].Name,
 					},
 					Kind: interfaces.ReconcileSecret,

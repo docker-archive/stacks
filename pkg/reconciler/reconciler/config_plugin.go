@@ -86,11 +86,11 @@ func newInitializationSupportConfig(cli interfaces.BackendClient) initialization
 
 func newAlgorithmPluginConfig(initConfig initializationConfig, snapshot interfaces.SnapshotStack, requestedResource *interfaces.ReconcileResource) *algorithmConfig {
 	result := algorithmConfig{
-		initializationConfig:  initConfig,
-		requestedResource:     requestedResource,
-		stackID:               snapshot.ID,
-		stackSpec:             snapshot.CurrentSpec,
-		goals:                 map[string]*interfaces.ReconcileResource{},
+		initializationConfig: initConfig,
+		requestedResource:    requestedResource,
+		stackID:              snapshot.ID,
+		stackSpec:            snapshot.CurrentSpec,
+		goals:                map[string]*interfaces.ReconcileResource{},
 	}
 
 	for _, resource := range snapshot.Configs {

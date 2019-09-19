@@ -70,4 +70,3 @@ func transform(resource interfaces.SnapshotResource, plugin algorithmPlugin) *in
 	}
 	return &newResource
 }
-

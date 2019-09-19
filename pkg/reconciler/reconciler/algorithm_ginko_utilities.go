@@ -174,14 +174,14 @@ func ManuallyStoreGoal(input *AlgorithmPluginInputs) {
 // ManuallyRemoveGoal placeholder
 func ManuallyRemoveGoal(input *AlgorithmPluginInputs) {
 	var (
-		resource *interfaces.ReconcileResource
+		resource       *interfaces.ReconcileResource
 		activeResource activeResource
-		err error
+		err            error
 	)
 	BeforeEach(func() {
 		activeResource, err = input.resourcePlugin.getActiveResource(*input.resource)
 		Expect(err).ToNot(HaveOccurred())
-		resource = input.resourcePlugin.addRemoveResourceGoal(activeResource)		
+		resource = input.resourcePlugin.addRemoveResourceGoal(activeResource)
 	})
 	It("And snapshot resources update", func() {
 		Expect(resource).ToNot(BeNil())
@@ -199,7 +199,7 @@ func ManuallyReconcileRemoveGoal(input *AlgorithmPluginInputs) {
 		err error
 	)
 	BeforeEach(func() {
-		err = input.resourcePlugin.deleteResource(input.resource)		
+		err = input.resourcePlugin.deleteResource(input.resource)
 	})
 	It("And snapshot resources update", func() {
 		Expect(err).ToNot(HaveOccurred())
@@ -214,7 +214,7 @@ func ManuallyReconcileUpdateGoal(input *AlgorithmPluginInputs) {
 	BeforeEach(func() {
 		act, _ := input.resourcePlugin.getActiveResource(*input.resource)
 		input.resource.Meta = act.getSnapshot().Meta
-		err = input.resourcePlugin.updateResource(*input.resource)		
+		err = input.resourcePlugin.updateResource(*input.resource)
 	})
 	It("And snapshot resources update", func() {
 		Expect(err).ToNot(HaveOccurred())

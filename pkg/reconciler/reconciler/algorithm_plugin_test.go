@@ -211,20 +211,20 @@ var _ = Describe("Algorithm Plugin for Secret - Stack Request", func() {
 
 				Context("Manually store goal", func() {
 					ManuallyStoreGoal(&input)
-				Context("Manually update goal", func() {
-					BeforeEach(func() {
-					snapshot, err2 = input.cli.FakeStackStore.GetSnapshotStack(input.stackID)
-						secretSupport := newAlgorithmPluginSecret(secretInit, snapshot, input.request)
-						input.resourcePlugin = secretSupport
-						input.resource = secretSupport.getGoalResource(input.resource.Name)
-						act, _ := secretSupport.getActiveResource(*input.resource)
-						input.resource.Meta = act.getSnapshot().Meta
-						Expect(input.resource).ToNot(BeNil())
+					Context("Manually update goal", func() {
+						BeforeEach(func() {
+							snapshot, err2 = input.cli.FakeStackStore.GetSnapshotStack(input.stackID)
+							secretSupport := newAlgorithmPluginSecret(secretInit, snapshot, input.request)
+							input.resourcePlugin = secretSupport
+							input.resource = secretSupport.getGoalResource(input.resource.Name)
+							act, _ := secretSupport.getActiveResource(*input.resource)
+							input.resource.Meta = act.getSnapshot().Meta
+							Expect(input.resource).ToNot(BeNil())
+						})
+						ManuallyReconcileUpdateGoal(&input)
 					})
-					ManuallyReconcileUpdateGoal(&input)
 				})
-				})
-				
+
 				Context("Manually remove goal", func() {
 					ManuallyRemoveGoal(&input)
 					Context("Manually remove goal", func() {

@@ -85,11 +85,11 @@ func newInitializationSupportSecret(cli interfaces.BackendClient) initialization
 
 func newAlgorithmPluginSecret(secretInit initializationSecret, snapshot interfaces.SnapshotStack, requestedResource *interfaces.ReconcileResource) *algorithmSecret {
 	result := algorithmSecret{
-		initializationSecret:  secretInit,
-		requestedResource:     requestedResource,
-		stackID:               snapshot.ID,
-		stackSpec:             snapshot.CurrentSpec,
-		goals:                 map[string]*interfaces.ReconcileResource{},
+		initializationSecret: secretInit,
+		requestedResource:    requestedResource,
+		stackID:              snapshot.ID,
+		stackSpec:            snapshot.CurrentSpec,
+		goals:                map[string]*interfaces.ReconcileResource{},
 	}
 
 	for _, resource := range snapshot.Secrets {
