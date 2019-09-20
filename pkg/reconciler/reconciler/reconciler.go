@@ -27,10 +27,10 @@ type Reconciler interface {
 // reconciler is thread-safe, and is synchronous. This means tests for the
 // reconciler can be written confined to one goroutine.
 type reconciler struct {
-	reconcileStackResource
-	notify       notifier.ObjectChangeNotifier
-	cli          interfaces.BackendClient
-	stackRequest *reconcileStackRequest
+	reconcileStackResource // nolint: unused
+	notify                 notifier.ObjectChangeNotifier
+	cli                    interfaces.BackendClient
+	stackRequest           *reconcileStackRequest
 }
 
 // reconcileStackResource is a high-level interface to document the separation
@@ -42,12 +42,12 @@ type reconcileStackResource interface {
 
 // reconcileStackRequest is the top-level reconciliation datastructure for a Stack
 type reconcileStackRequest struct {
-	reconcileStackResource
-	requestedResource *interfaces.ReconcileResource
-	services          algorithmPlugin
-	networks          algorithmPlugin
-	secrets           algorithmPlugin
-	configs           algorithmPlugin
+	reconcileStackResource // nolint: unused
+	requestedResource      *interfaces.ReconcileResource
+	services               algorithmPlugin
+	networks               algorithmPlugin
+	secrets                algorithmPlugin
+	configs                algorithmPlugin
 }
 
 // New creates a new Reconciler object, which uses the provided

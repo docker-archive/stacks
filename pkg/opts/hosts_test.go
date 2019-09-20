@@ -53,8 +53,8 @@ func TestParseHost(t *testing.T) {
 func TestParseDockerDaemonHost(t *testing.T) {
 	invalids := map[string]string{
 
-		"tcp:a.b.c.d":                   "Invalid bind address format: tcp:a.b.c.d",
-		"tcp:a.b.c.d/path":              "Invalid bind address format: tcp:a.b.c.d/path",
+		"tcp:a.b.c.d":                   "parse tcp://tcp:a.b.c.d: invalid port \":a.b.c.d\" after host",
+		"tcp:a.b.c.d/path":              "parse tcp://tcp:a.b.c.d/path: invalid port \":a.b.c.d\" after host",
 		"udp://127.0.0.1":               "Invalid bind address format: udp://127.0.0.1",
 		"udp://127.0.0.1:2375":          "Invalid bind address format: udp://127.0.0.1:2375",
 		"tcp://unix:///run/docker.sock": "Invalid proto, expected tcp: unix:///run/docker.sock",
@@ -99,8 +99,8 @@ func TestParseTCP(t *testing.T) {
 		defaultHTTPHost = "tcp://127.0.0.1:2376"
 	)
 	invalids := map[string]string{
-		"tcp:a.b.c.d":          "Invalid bind address format: tcp:a.b.c.d",
-		"tcp:a.b.c.d/path":     "Invalid bind address format: tcp:a.b.c.d/path",
+		"tcp:a.b.c.d":          "parse tcp://tcp:a.b.c.d: invalid port \":a.b.c.d\" after host",
+		"tcp:a.b.c.d/path":     "parse tcp://tcp:a.b.c.d/path: invalid port \":a.b.c.d\" after host",
 		"udp://127.0.0.1":      "Invalid proto, expected tcp: udp://127.0.0.1",
 		"udp://127.0.0.1:2375": "Invalid proto, expected tcp: udp://127.0.0.1:2375",
 	}

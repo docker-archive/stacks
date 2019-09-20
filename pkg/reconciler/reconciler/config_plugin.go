@@ -13,7 +13,7 @@ import (
 
 type activeConfig struct {
 	interfaces.SnapshotResource
-	requestedResource *interfaces.ReconcileResource
+	requestedResource *interfaces.ReconcileResource // nolint: unused
 	config            swarm.Config
 	stackID           string
 }
