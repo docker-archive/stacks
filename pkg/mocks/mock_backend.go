@@ -8,7 +8,7 @@ import (
 	events "github.com/docker/docker/api/types/events"
 	filters "github.com/docker/docker/api/types/filters"
 	swarm "github.com/docker/docker/api/types/swarm"
-	interfaces0 "github.com/docker/stacks/pkg/interfaces"
+	interfaces "github.com/docker/stacks/pkg/interfaces"
 	types0 "github.com/docker/stacks/pkg/types"
 	gomock "github.com/golang/mock/gomock"
 	reflect "reflect"
@@ -245,6 +245,19 @@ func (_mr *MockBackendClientMockRecorder) GetServices(arg0 interface{}) *gomock.
 	return _mr.mock.ctrl.RecordCallWithMethodType(_mr.mock, "GetServices", reflect.TypeOf((*MockBackendClient)(nil).GetServices), arg0)
 }
 
+// GetSnapshotStack mocks base method
+func (_m *MockBackendClient) GetSnapshotStack(_param0 string) (interfaces.SnapshotStack, error) {
+	ret := _m.ctrl.Call(_m, "GetSnapshotStack", _param0)
+	ret0, _ := ret[0].(interfaces.SnapshotStack)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetSnapshotStack indicates an expected call of GetSnapshotStack
+func (_mr *MockBackendClientMockRecorder) GetSnapshotStack(arg0 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCallWithMethodType(_mr.mock, "GetSnapshotStack", reflect.TypeOf((*MockBackendClient)(nil).GetSnapshotStack), arg0)
+}
+
 // GetStack mocks base method
 func (_m *MockBackendClient) GetStack(_param0 string) (types0.Stack, error) {
 	ret := _m.ctrl.Call(_m, "GetStack", _param0)
@@ -256,19 +269,6 @@ func (_m *MockBackendClient) GetStack(_param0 string) (types0.Stack, error) {
 // GetStack indicates an expected call of GetStack
 func (_mr *MockBackendClientMockRecorder) GetStack(arg0 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCallWithMethodType(_mr.mock, "GetStack", reflect.TypeOf((*MockBackendClient)(nil).GetStack), arg0)
-}
-
-// GetSnapshotStack mocks base method
-func (_m *MockBackendClient) GetSnapshotStack(_param0 string) (interfaces0.SnapshotStack, error) {
-	ret := _m.ctrl.Call(_m, "GetSnapshotStack", _param0)
-	ret0, _ := ret[0].(interfaces0.SnapshotStack)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetSnapshotStack indicates an expected call of GetSnapshotStack
-func (_mr *MockBackendClientMockRecorder) GetSnapshotStack(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCallWithMethodType(_mr.mock, "GetSnapshotStack", reflect.TypeOf((*MockBackendClient)(nil).GetSnapshotStack), arg0)
 }
 
 // GetTask mocks base method
@@ -428,6 +428,19 @@ func (_m *MockBackendClient) UpdateService(_param0 string, _param1 uint64, _para
 // UpdateService indicates an expected call of UpdateService
 func (_mr *MockBackendClientMockRecorder) UpdateService(arg0, arg1, arg2, arg3, arg4 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCallWithMethodType(_mr.mock, "UpdateService", reflect.TypeOf((*MockBackendClient)(nil).UpdateService), arg0, arg1, arg2, arg3, arg4)
+}
+
+// UpdateSnapshotStack mocks base method
+func (_m *MockBackendClient) UpdateSnapshotStack(_param0 string, _param1 interfaces.SnapshotStack, _param2 uint64) (interfaces.SnapshotStack, error) {
+	ret := _m.ctrl.Call(_m, "UpdateSnapshotStack", _param0, _param1, _param2)
+	ret0, _ := ret[0].(interfaces.SnapshotStack)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// UpdateSnapshotStack indicates an expected call of UpdateSnapshotStack
+func (_mr *MockBackendClientMockRecorder) UpdateSnapshotStack(arg0, arg1, arg2 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCallWithMethodType(_mr.mock, "UpdateSnapshotStack", reflect.TypeOf((*MockBackendClient)(nil).UpdateSnapshotStack), arg0, arg1, arg2)
 }
 
 // UpdateStack mocks base method

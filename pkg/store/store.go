@@ -33,7 +33,7 @@ func (s *StackStore) UpdateStack(id string, stackSpec types.StackSpec, version u
 }
 
 // UpdateSnapshotStack updates an existing SnapshotStack object
-func (s *StackStore) UpdateSnapshotStack(id string, snapshotStack interfaces.SnapshotStack, version uint64) error {
+func (s *StackStore) UpdateSnapshotStack(id string, snapshotStack interfaces.SnapshotStack, version uint64) (interfaces.SnapshotStack, error) {
 	return UpdateSnapshotStack(context.TODO(), s.client, id, snapshotStack, version)
 }
 

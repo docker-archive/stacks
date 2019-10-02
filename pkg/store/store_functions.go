@@ -135,32 +135,32 @@ func UpdateStack(ctx context.Context, rc ResourcesClient, id string, stackSpec t
 }
 
 // UpdateSnapshotStack updates a stack's specs.
-func UpdateSnapshotStack(ctx context.Context, rc ResourcesClient, id string, snapshot interfaces.SnapshotStack, version uint64) error {
+func UpdateSnapshotStack(ctx context.Context, rc ResourcesClient, id string, snapshot interfaces.SnapshotStack, version uint64) (interfaces.SnapshotStack, error) {
 	resp, err := rc.GetResource(ctx, &swarmapi.GetResourceRequest{
 		ResourceID: id,
 	})
 	if err != nil {
-		return err
+		return interfaces.SnapshotStack{}, err
 	}
 	resource := resp.Resource
 
 	if snapshot.Name != resource.Annotations.Name {
-		return errors.New("Stack Name changed")
+		return interfaces.SnapshotStack{}, errors.New("Stack Name changed")
 	}
 
 	if version != resource.Meta.Version.Index {
-		return errors.New("Stack Version stale")
+		return interfaces.SnapshotStack{}, errors.New("Stack Version stale")
 	}
 
 	existingSnapshot, err := UnmarshalSnapshotStack(resource.Payload)
 	if err != nil {
-		return err
+		return interfaces.SnapshotStack{}, err
 	}
 
 	// marshal the updated interfaces.SnapshotStack
 	any, err := MarshalSnapshotStackSnapshot(existingSnapshot, &snapshot)
 	if err != nil {
-		return err
+		return interfaces.SnapshotStack{}, err
 	}
 
 	stackSpec := existingSnapshot.CurrentSpec
@@ -176,7 +176,10 @@ func UpdateSnapshotStack(ctx context.Context, rc ResourcesClient, id string, sna
 			Payload: any,
 		},
 	)
-	return err
+	if err != nil {
+		return interfaces.SnapshotStack{}, err
+	}
+	return *existingSnapshot, nil
 }
 
 // DeleteStack deletes a stack

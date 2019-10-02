@@ -65,7 +65,7 @@ func TestIsolationFakeSecretStore(t *testing.T) {
 	require := require.New(t)
 	store := NewFakeSecretStore()
 
-	fixtures := GenerateSecretFixtures(1, "TestIsolationFakeSecretStore")
+	fixtures := GenerateSecretFixtures(1, "", "TestIsolationFakeSecretStore")
 	spec := &fixtures[0].Spec
 
 	id, err := store.CreateSecret(*spec)
@@ -104,7 +104,7 @@ func TestSpecifiedErrorsFakeSecretStore(t *testing.T) {
 	store.SpecifyKeyPrefix("SpecifiedError")
 	store.SpecifyErrorTrigger("SpecifiedError", FakeUnimplemented)
 
-	fixtures := GenerateSecretFixtures(10, "TestSpecifiedErrorsFakeSecretStore")
+	fixtures := GenerateSecretFixtures(10, "", "TestSpecifiedErrorsFakeSecretStore")
 
 	var id string
 	var err error
@@ -236,7 +236,7 @@ func TestCRDFakeSecretStore(t *testing.T) {
 	require.Empty(secret)
 
 	// Add three items
-	fixtures := GenerateSecretFixtures(4, "TestCRDFakeSecretStore")
+	fixtures := GenerateSecretFixtures(4, "", "TestCRDFakeSecretStore")
 	for i := 0; i < 3; i++ {
 		id, err := store.CreateSecret(fixtures[i].Spec)
 		require.NoError(err, fmt.Sprintf("failed to add fixture %d", i))

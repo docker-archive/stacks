@@ -21,6 +21,7 @@ type StacksBackend interface {
 	GetSnapshotStack(id string) (SnapshotStack, error)
 	ListStacks() ([]types.Stack, error)
 	UpdateStack(id string, spec types.StackSpec, version uint64) error
+	UpdateSnapshotStack(id string, spec SnapshotStack, version uint64) (SnapshotStack, error)
 	DeleteStack(id string) error
 }
 
@@ -104,7 +105,7 @@ type BackendClient interface {
 type StackStore interface {
 	AddStack(types.StackSpec) (string, error)
 	UpdateStack(string, types.StackSpec, uint64) error
-	UpdateSnapshotStack(string, SnapshotStack, uint64) error
+	UpdateSnapshotStack(string, SnapshotStack, uint64) (SnapshotStack, error)
 
 	DeleteStack(string) error
 
@@ -144,3 +145,58 @@ var (
 	DefaultUpdateServiceArg4 = dockerTypes.ServiceUpdateOptions{}
 	DefaultUpdateServiceArg5 = false
 )
+
+// ReconcileKind is an enumeration the kind of resource held in a types.Stack
+type ReconcileKind = string
+
+const (
+	// ReconcileConfig indicates that the Resource is swarm.Config
+	ReconcileConfig ReconcileKind = events.ConfigEventType
+
+	// ReconcileNetwork indicates that the Resource is dockerTypes.NetworkResource
+	ReconcileNetwork ReconcileKind = events.NetworkEventType
+
+	// ReconcileSecret indicates that the Resource is swarm.Secret
+	ReconcileSecret ReconcileKind = events.SecretEventType
+
+	// ReconcileService indicates that the Resource is swarm.Service
+	ReconcileService ReconcileKind = events.ServiceEventType
+
+	// ReconcileStack indicates that the Resource is types.Stack
+	ReconcileStack ReconcileKind = types.StackEventType
+)
+
+// ReconcileKinds maps all the ReconcileKind enumerations for comparisons
+var ReconcileKinds = map[ReconcileKind]struct{}{ReconcileStack: {}, ReconcileNetwork: {}, ReconcileSecret: {}, ReconcileConfig: {}, ReconcileService: {}}
+
+// ReconcileState is an enumeration for reconciliation operations
+type ReconcileState string
+
+const (
+	// ReconcileSkip defines the ReconcileState for Skipping
+	ReconcileSkip ReconcileState = "SKIP"
+
+	// ReconcileCreate defines the ReconcileState for Creating
+	ReconcileCreate ReconcileState = "CREATE"
+
+	// ReconcileCompare defines the ReconcileState for Compare
+	ReconcileCompare ReconcileState = "COMPARE"
+
+	// ReconcileSame defines the ReconcileState for No operation
+	ReconcileSame ReconcileState = "SAME"
+
+	// ReconcileUpdate defines the ReconcileState for Update
+	ReconcileUpdate ReconcileState = "UPDATE"
+
+	// ReconcileDelete defines the ReconcileState for Delete
+	ReconcileDelete ReconcileState = "DELETE"
+)
+
+// ReconcileResource is part of the reconciliation datastructure for Stack resources
+type ReconcileResource struct {
+	SnapshotResource
+	Mark    ReconcileState
+	Kind    ReconcileKind
+	StackID string
+	Config  interface{}
+}

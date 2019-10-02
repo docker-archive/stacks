@@ -5,8 +5,8 @@ E2E_IMAGE_NAME=stack-e2e
 TAG=latest # TODO work out versioning scheme
 TEST_SCOPE?=./...
 BUILD_ARGS= \
-    --build-arg ALPINE_BASE=alpine:3.10 \
-    --build-arg GOLANG_BASE=golang:1.12.6-alpine3.10
+    --build-arg ALPINE_BASE=alpine:3.10.2 \
+    --build-arg GOLANG_BASE=golang:1.12.8-alpine3.10
 
 build:
 	docker build $(BUILD_ARGS) -t $(ORG)/$(CONTROLLER_IMAGE_NAME):$(TAG) .

@@ -49,7 +49,7 @@ func TestIsolationFakeNetworkStore(t *testing.T) {
 	require := require.New(t)
 	store := NewFakeNetworkStore()
 
-	fixtures := GenerateNetworkFixtures(1, "TestIsolationFakeNetworkStore")
+	fixtures := GenerateNetworkFixtures(1, "", "TestIsolationFakeNetworkStore")
 	spec := &fixtures[0]
 
 	id, err := store.CreateNetwork(*spec)
@@ -78,7 +78,7 @@ func TestSpecifiedErrorsFakeNetworkStore(t *testing.T) {
 	store.SpecifyKeyPrefix("SpecifiedError")
 	store.SpecifyErrorTrigger("SpecifiedError", FakeUnimplemented)
 
-	fixtures := GenerateNetworkFixtures(10, "TestSpecifiedErrorsFakeNetworkStore")
+	fixtures := GenerateNetworkFixtures(10, "", "TestSpecifiedErrorsFakeNetworkStore")
 
 	var id string
 	var err error
@@ -186,7 +186,7 @@ func TestCRDFakeNetworkStore(t *testing.T) {
 	require.Empty(network)
 
 	// Add three items
-	fixtures := GenerateNetworkFixtures(4, "TestCRDFakeNetworkStore")
+	fixtures := GenerateNetworkFixtures(4, "", "TestCRDFakeNetworkStore")
 	for i := 0; i < 3; i++ {
 		id, err := store.CreateNetwork(fixtures[i])
 		require.NoError(err, fmt.Sprintf("failed to add fixture %d", i))

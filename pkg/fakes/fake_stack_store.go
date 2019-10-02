@@ -183,7 +183,7 @@ func (s *FakeStackStore) UpdateStack(idOrName string, stackSpec types.StackSpec,
 }
 
 // UpdateSnapshotStack updates the snapshot in the store.
-func (s *FakeStackStore) UpdateSnapshotStack(idOrName string, snapshot interfaces.SnapshotStack, version uint64) error {
+func (s *FakeStackStore) UpdateSnapshotStack(idOrName string, snapshot interfaces.SnapshotStack, version uint64) (interfaces.SnapshotStack, error) {
 	s.Lock()
 	defer s.Unlock()
 
@@ -193,19 +193,19 @@ func (s *FakeStackStore) UpdateSnapshotStack(idOrName string, snapshot interface
 
 	existing := s.InternalGetStack(id)
 	if existing == nil {
-		return errdefs.NotFound(fmt.Errorf("stack %s not found", id))
+		return interfaces.SnapshotStack{}, errdefs.NotFound(fmt.Errorf("stack %s not found", id))
 	}
 
 	if existing.Version.Index != version {
-		return fmt.Errorf("update out of sequence")
+		return interfaces.SnapshotStack{}, fmt.Errorf("update out of sequence")
 	}
 
 	if err := s.maybeTriggerAnError("UpdateSnapshotStack", existing.CurrentSpec); err != nil {
-		return err
+		return interfaces.SnapshotStack{}, err
 	}
 
 	if err := s.maybeTriggerAnError("UpdateSnapshotStack", copied.CurrentSpec); err != nil {
-		return err
+		return interfaces.SnapshotStack{}, err
 	}
 
 	existing.Version.Index++
@@ -217,7 +217,7 @@ func (s *FakeStackStore) UpdateSnapshotStack(idOrName string, snapshot interface
 	existing.Networks = copied.Networks
 
 	s.stacks[id] = existing
-	return nil
+	return *existing, nil
 }
 
 // DeleteStack removes a stack from the store.
